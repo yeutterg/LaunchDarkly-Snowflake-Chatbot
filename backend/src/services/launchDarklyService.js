@@ -1,11 +1,11 @@
 import LaunchDarkly from '@launchdarkly/node-server-sdk';
-import { AIConfig, AIConfigTracker } from '@launchdarkly/ai-sdk';
+import { initAI } from '@launchdarkly/server-sdk-ai';
 import { logger } from '../utils/logger.js';
 
 export class LaunchDarklyService {
   constructor() {
     this.ldClient = null;
-    this.aiTracker = null;
+    this.ldAI = null;
     this.initialized = false;
     this.initialize();
   }
@@ -27,9 +27,12 @@ export class LaunchDarklyService {
       });
 
       await this.ldClient.waitForInitialization();
-      this.aiTracker = new AIConfigTracker(this.ldClient);
+      
+      // Initialize AI SDK
+      this.ldAI = initAI(this.ldClient);
+      
       this.initialized = true;
-      logger.info('LaunchDarkly initialized successfully');
+      logger.info('LaunchDarkly and AI SDK initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize LaunchDarkly:', error);
       throw error;
@@ -48,12 +51,14 @@ export class LaunchDarklyService {
     const defaultPrompt = `You are a friendly and knowledgeable customer service representative for Farm Fresh Pet, a premium pet food store. You have access to order information, product details, and can help with returns. Always be helpful, concise, and empathetic to pet owners' concerns.`;
     
     try {
-      const prompt = await this.ldClient.variation(
-        'chatbot-system-prompt',
-        userContext,
-        defaultPrompt
-      );
+      // Use AI SDK for model configuration
+      const config = this.ldAI.config('chatbot-system-prompt', userContext, {
+        prompt: [
+          { text: defaultPrompt, role: 'system' }
+        ]
+      });
       
+      const prompt = config.prompt?.[0]?.text || defaultPrompt;
       return prompt;
     } catch (error) {
       logger.error('Error getting system prompt:', error);
@@ -72,11 +77,24 @@ export class LaunchDarklyService {
     };
     
     try {
-      const config = await this.ldClient.variation(
-        'llm-model-selection',
-        userContext,
-        defaultConfig
-      );
+      // Use AI SDK for model configuration
+      const aiConfig = this.ldAI.config('llm-model-selection', userContext, {
+        model: {
+          id: defaultConfig.model,
+          parameters: {
+            temperature: defaultConfig.temperature,
+            maxTokens: defaultConfig.maxTokens
+          }
+        }
+      });
+      
+      // Extract model configuration
+      const config = {
+        provider: aiConfig.model?.provider || defaultConfig.provider,
+        model: aiConfig.model?.id || defaultConfig.model,
+        temperature: aiConfig.model?.parameters?.temperature || defaultConfig.temperature,
+        maxTokens: aiConfig.model?.parameters?.maxTokens || defaultConfig.maxTokens
+      };
       
       return config;
     } catch (error) {
@@ -89,6 +107,7 @@ export class LaunchDarklyService {
     await this.waitForInitialization();
     
     try {
+      // Track main chat interaction event
       this.ldClient.track('chat-interaction', userContext, {
         duration: metrics.duration,
         tokens: metrics.tokens,
@@ -98,13 +117,25 @@ export class LaunchDarklyService {
         error: metrics.error || null
       });
 
-      if (this.aiTracker) {
-        this.aiTracker.trackDuration('response-time', metrics.duration);
-        this.aiTracker.trackTokenUsage('tokens-used', metrics.tokens);
-        
-        if (metrics.satisfaction !== undefined) {
-          this.aiTracker.trackFeedback('user-satisfaction', metrics.satisfaction);
-        }
+      // Use AI SDK tracking for AI-specific metrics
+      const tracker = this.ldAI.track(userContext);
+      
+      // Track generation metrics
+      tracker.generation({
+        configKey: 'llm-model-selection',
+        input: { tokens: metrics.inputTokens || 0 },
+        output: { tokens: metrics.tokens || 0 },
+        duration: metrics.duration,
+        success: metrics.success
+      });
+      
+      // Track feedback if provided
+      if (metrics.satisfaction !== undefined) {
+        tracker.feedback({
+          configKey: 'llm-model-selection',
+          positive: metrics.satisfaction > 3,
+          score: metrics.satisfaction
+        });
       }
     } catch (error) {
       logger.error('Error tracking metrics:', error);

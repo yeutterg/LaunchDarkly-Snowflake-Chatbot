@@ -4,10 +4,10 @@ FROM node:18-alpine as builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Development stage
 FROM node:18-alpine
@@ -18,10 +18,10 @@ WORKDIR /app
 RUN apk add --no-cache curl
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install all dependencies (including dev dependencies for nodemon)
-RUN npm ci
+RUN npm install
 
 # Copy application files
 COPY . .

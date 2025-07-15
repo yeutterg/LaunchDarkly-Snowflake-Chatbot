@@ -25,6 +25,10 @@ This is the backend API for the Farm Fresh Pet AI-powered customer service chatb
 ```bash
 cd backend
 npm install
+
+# Or install packages individually:
+npm install @launchdarkly/node-server-sdk
+npm install @launchdarkly/server-sdk-ai
 ```
 
 ### 2. Configure Environment Variables

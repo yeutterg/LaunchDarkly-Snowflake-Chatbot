@@ -1,17 +1,3 @@
-# Build stage
-FROM node:18-alpine as builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source code
-COPY . .
-
 # Development stage
 FROM node:18-alpine
 
@@ -21,13 +7,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy application files
-COPY --from=builder /app .
+COPY . .
 
 # Expose port
 EXPOSE 5173
 
-# Start development server
+# Start development server with host binding
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
