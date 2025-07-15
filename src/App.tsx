@@ -2,11 +2,13 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { LDContextProvider } from './context/LDContext';
 import { UserProvider, useUser } from './context/UserContext';
 import type { UserProfile } from './context/UserContext';
+import { ChatProvider } from './context/ChatContext';
 import { HeroSection } from './components/Hero/HeroSection';
 import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
 import { SeasonalBanner } from './components/Layout/SeasonalBanner';
 import { Account } from './pages/Account';
+import ChatWidget from './components/Chat/ChatWidget';
 import styled from '@emotion/styled';
 import { useState } from 'react';
 import { Modal } from './components/common/Modal';
@@ -140,29 +142,32 @@ function AppContent() {
 
   return (
     <LDContextProvider>
-      <SeasonalBanner />
-      <Header
-        isLoggedIn={isLoggedIn}
-        onLogin={() => setShowPersonaModal(true)}
-        onLogout={logout}
-        onAccount={() => navigate('/account')}
-      />
-      <MainContent>
-        <Routes>
-          <Route path="/" element={<HeroSection />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/why-gravity-farms" element={<WhyGravityFarms />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/reviews" element={<Reviews />} />
-        </Routes>
-      </MainContent>
-      <Footer />
-      <PersonaModal 
-        open={showPersonaModal} 
-        onClose={() => setShowPersonaModal(false)}
-        onSelect={handlePersonaSelect} 
-      />
+      <ChatProvider>
+        <SeasonalBanner />
+        <Header
+          isLoggedIn={isLoggedIn}
+          onLogin={() => setShowPersonaModal(true)}
+          onLogout={logout}
+          onAccount={() => navigate('/account')}
+        />
+        <MainContent>
+          <Routes>
+            <Route path="/" element={<HeroSection />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/why-gravity-farms" element={<WhyGravityFarms />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/reviews" element={<Reviews />} />
+          </Routes>
+        </MainContent>
+        <Footer />
+        <ChatWidget />
+        <PersonaModal 
+          open={showPersonaModal} 
+          onClose={() => setShowPersonaModal(false)}
+          onSelect={handlePersonaSelect} 
+        />
+      </ChatProvider>
     </LDContextProvider>
   );
 }
