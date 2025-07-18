@@ -1,0 +1,99 @@
+services:
+  chatbot-backend:
+    build:
+      context: ./gravity-farms-chatbot-backend
+      dockerfile: Dockerfile
+    container_name: gravity-farms-chatbot-backend
+    ports:
+      - "3001:3001"
+    environment:
+      # Server Configuration
+      - PORT=3001
+      - NODE_ENV=production
+      - FRONTEND_URL=http://localhost:3000
+      
+      # Demo Mode - Remove these to use real credentials
+      - DEMO_MODE=true
+      
+      # Snowflake Configuration (optional - will use mock if not provided)
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:-}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:-}
+      - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD:-}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-GRAVITY_FARMS_PETFOOD_AI}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-CHATBOT}
+      
+      # LaunchDarkly Configuration (optional - will use mock if not provided)
+      - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY:-}
+      
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
+
+  # Run the existing Gravity Farms frontend with ChatWidget
+  gravity-farms-frontend:
+    image: node:18-alpine
+    container_name: gravity-farms-frontend
+    working_dir: /app
+    volumes:
+      - ./farm-fresh-pet-frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - BROWSER=none  # Prevent auto-opening browser
+    command: >
+      sh -c "
+      echo '🚀 Installing frontend dependencies...' &&
+      npm install &&
+      echo '✅ Dependencies installed!' &&
+      echo '' &&
+      echo '⏳ Waiting for backend to be ready...' &&
+      while ! wget -q --spider http://chatbot-backend:3001/health; do
+        sleep 1;
+      done &&
+      echo '✅ Backend is ready!' &&
+      echo '' &&
+      echo '=====================================' &&
+      echo '🎮 GRAVITY FARMS FRONTEND STARTING' &&
+      echo '=====================================' &&
+      echo '' &&
+      echo '📱 Frontend URL: http://localhost:3000' &&
+      echo '🔌 Backend API: http://localhost:3001' &&
+      echo '' &&
+      echo '👉 Open http://localhost:3000 in your browser' &&
+      echo '=====================================' &&
+      echo '' &&
+      npm run dev -- --host 0.0.0.0 --port 3000
+      "
+    networks:
+      - chatbot-network
+    depends_on:
+      - chatbot-backend
+    profiles:
+      - demo
+
+networks:
+  chatbot-network:
+    driver: bridge
+
+# USAGE:
+# ------
+# Complete Demo (Recommended for first time):
+#   docker-compose --profile demo up
+#   Then open http://localhost:3000
+#
+# Backend API only (For integration with existing frontend):
+#   docker-compose up chatbot-backend
+#
+# Production mode:
+#   1. Create .env file with real credentials
+#   2. Set DEMO_MODE=false in docker-compose.yml
+#   3. docker-compose up chatbot-backend

@@ -1,0 +1,52 @@
+# Node modules
+node_modules/
+*/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+dist/
+build/
+
+# Documentation
+*.md
+docs/
+
+# Development files
+*.sql
+docker-compose.yml
+Dockerfile
+
+# But include package-lock.json
+!package-lock.json
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Temporary files
+*.tmp
+.cache/
