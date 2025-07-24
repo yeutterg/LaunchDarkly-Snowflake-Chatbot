@@ -35,7 +35,17 @@ docker-compose up chatbot-backend
 
 ### 3. Production Mode with Real Credentials
 
-Create a `.env` file in the root directory:
+Copy the example environment file and configure it with your credentials:
+
+```bash
+# Copy the example environment file
+cp env.example .env
+
+# Edit the .env file with your actual credentials
+# nano .env  # or use your preferred editor
+```
+
+Update the `.env` file with your actual credentials:
 
 ```bash
 # Snowflake Configuration
