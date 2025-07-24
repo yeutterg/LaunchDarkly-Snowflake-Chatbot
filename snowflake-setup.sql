@@ -103,7 +103,7 @@ VALUES
      38.97,
      PARSE_JSON('{"street": "789 Pine Rd", "city": "San Francisco", "state": "CA", "zip": "94102"}'));
 
--- 4. Create Cortex Functions
+-- 4. Create Cortex Functions (Optional - only if Cortex is available in your account)
 -- Function for chat completions
 CREATE OR REPLACE FUNCTION CHATBOT_RESPONSE(
     prompt TEXT,
@@ -161,7 +161,12 @@ SELECT 'Database Setup Complete!' as status;
 SELECT COUNT(*) as product_count FROM PRODUCTS;
 SELECT COUNT(*) as order_count FROM ORDERS;
 
--- Test Cortex function
+-- Test product search function (this should work regardless of Cortex availability)
+SELECT * FROM TABLE(SEARCH_PRODUCTS_RANKED('dog food'));
+
+-- Test Cortex function (this may fail if Cortex is not available - that's OK!)
+-- If this fails, the chatbot will use demo mode or alternative LLM services
+SELECT 'Testing Cortex function...' as test_status;
 SELECT CHATBOT_RESPONSE(
     'What products do you have for dogs?',
     'You are a helpful assistant for Gravity Farms Petfood.',

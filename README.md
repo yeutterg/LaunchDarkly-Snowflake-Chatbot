@@ -130,6 +130,19 @@ After running the script, you should see the following objects in your Snowflake
 
 If you encounter any errors, double-check your account permissions or contact your Snowflake administrator.
 
+#### 5. Troubleshooting Common Issues
+
+**"Unknown function CHATBOT_RESPONSE" Error:**
+- This error occurs if Snowflake Cortex is not available in your account or region
+- **Solution**: This is expected and won't affect the chatbot functionality
+- The chatbot will automatically use demo mode or alternative LLM services
+- You can safely ignore this error and continue with the setup
+
+**Cortex Availability:**
+- Snowflake Cortex is available in select regions and account types
+- If not available, the chatbot will fall back to demo mode with mock responses
+- For production use, consider using external LLM services (OpenAI, Anthropic, etc.)
+
 For more details, see the [Snowflake Worksheets documentation](https://docs.snowflake.com/en/user-guide/ui-worksheets).
 
 
