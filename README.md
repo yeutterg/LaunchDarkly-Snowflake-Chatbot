@@ -346,6 +346,100 @@ The service logs important metrics in demo mode:
 
 In production, these metrics are sent to LaunchDarkly for analysis.
 
+## 🚩 Feature Flags & Analytics
+
+This application uses LaunchDarkly for feature flag management and analytics tracking. Below is a comprehensive list of all feature flags and track events used throughout the system.
+
+### Feature Flags
+
+#### Frontend Feature Flags
+
+| Flag Key | Type | Default Value | Description | Location |
+|----------|------|---------------|-------------|----------|
+| `hero-banner-text` | JSON Object | `{"banner-text": "Control Banner", ...}` | Controls hero banner content, styling, and layout | `HeroSection.tsx` |
+| `number-of-days-trial` | Number | `7` | Number of free trial days offered | `useTrialDays.ts` |
+| `seasonal-sale-banner-text` | String | `""` | Seasonal promotional banner text | `SeasonalBanner.tsx` |
+| `show-trial-button` | Boolean | `false` | Controls visibility of trial signup button | `HeroSection.tsx` |
+| `modernize-frontend` | Boolean | `false` | Enables modern UI components and styling | `App.tsx` |
+| `site-tagline` | String | `"Crafted in Gravity Falls, delivered to your door"` | Website tagline in footer | `Footer.tsx` |
+
+#### Backend Feature Flags
+
+| Flag Key | Type | Default Value | Description | Location |
+|----------|------|---------------|-------------|----------|
+| `chatbot-system-prompt` | String | Default customer service prompt | AI chatbot system prompt | `launchdarkly-config.js` |
+| `llm-model-selection` | JSON Object | `{"provider": "snowflake", "model": "mixtral-8x7b", ...}` | LLM model configuration | `launchdarkly-config.js` |
+
+### Track Events
+
+#### Frontend Track Events
+
+| Event Name | Context | Description | Location |
+|------------|---------|-------------|----------|
+| `banner_click` | `{banner_text, timestamp}` | User clicks seasonal banner | `SeasonalBanner.tsx` |
+
+#### Backend Track Events
+
+| Event Name | Context | Description | Location |
+|------------|---------|-------------|----------|
+| `chat-interaction` | `{responseTime, model, intent, sessionId, timestamp}` | Chat interaction metrics | `launchdarkly-config.js` |
+| `token-usage` | `tokens` | LLM token consumption | `launchdarkly-config.js` |
+| `user-satisfaction` | `satisfaction` | User satisfaction rating | `launchdarkly-config.js` |
+| `chat-error` | `{error, errorType}` | Chat error tracking | `launchdarkly-config.js` |
+
+#### Simulation Track Events
+
+The following events are tracked during data simulation runs:
+
+| Event Name | Context | Description | Location |
+|------------|---------|-------------|----------|
+| `page_view` | User context | Page view event | `gravityfarms_simulation.py` |
+| `trial_signup` | User context | User signs up for trial | `gravityfarms_simulation.py` |
+| `trial_to_paid_conversion` | User context | Trial user converts to paid | `gravityfarms_simulation.py` |
+| `total_revenue` | `{metric_value: revenue}` | Total revenue generated | `gravityfarms_simulation.py` |
+| `adjusted_revenue` | `{metric_value: adjusted_revenue}` | Revenue minus trial costs | `gravityfarms_simulation.py` |
+| `banner_click` | User context | Seasonal banner click | `gravityfarms_simulation.py` |
+| `hero_engagement` | User context | Hero section engagement | `gravityfarms_simulation.py` |
+
+### Feature Flag Usage Examples
+
+#### Hero Banner Configuration
+```typescript
+const { value: bannerConfig } = useFeatureFlag('hero-banner-text', DEFAULT_BANNER);
+// Controls: banner-text, banner-text-color, horiz-justification, image-file, 
+// sub-banner-text, sub-banner-text-color, vert-justification
+```
+
+#### Trial Days Configuration
+```typescript
+const { trialDays, isLoading } = useTrialDays(7);
+// Returns number of trial days from LaunchDarkly
+```
+
+#### Modern UI Toggle
+```typescript
+const { value: modernizeFrontend } = useFeatureFlag('modernize-frontend', false);
+// Enables/disables modern UI components
+```
+
+### Analytics Context
+
+All track events include user context with the following attributes:
+- `key`: Unique user identifier
+- `name`: User's name
+- `country`: User's country (US, UK, FR, DE, CA)
+- `state`: User's state/province
+- `petType`: Pet type (dog, cat, both)
+- `planType`: Subscription plan (basic, premium, trial)
+- `paymentType`: Payment method (credit_card, paypal, apple_pay, google_pay, bank)
+
+### Demo Mode Behavior
+
+When running in demo mode (`DEMO_MODE=true`):
+- Feature flags return default values
+- Track events are logged to console instead of sent to LaunchDarkly
+- No external LaunchDarkly calls are made
+
 ## 🤝 Contributing
 
 1. Fork the repository
