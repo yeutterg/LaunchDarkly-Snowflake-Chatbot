@@ -33,11 +33,31 @@ app.post('/api/chat/message', async (req, res) => {
             userEmail
         );
         
-        res.json({ 
-            response,
-            sessionId,
-            timestamp: new Date().toISOString()
-        });
+        // For demo mode, check if we need to send a follow-up message
+        console.log('DEMO_MODE:', process.env.DEMO_MODE, 'Type:', typeof process.env.DEMO_MODE);
+        if (process.env.DEMO_MODE === 'true' || process.env.DEMO_MODE === true) {
+            const lowerMessage = message.toLowerCase();
+            const responses = [response];
+            
+            // Add follow-up message for any query except "human"
+            if (!lowerMessage.includes('human')) {
+                responses.push("Is there anything else I can help with?");
+            }
+            
+            console.log('Sending responses array:', responses);
+            res.json({ 
+                responses,
+                sessionId,
+                timestamp: new Date().toISOString()
+            });
+        } else {
+            console.log('Sending single response');
+            res.json({ 
+                response,
+                sessionId,
+                timestamp: new Date().toISOString()
+            });
+        }
         
     } catch (error) {
         console.error('Chat endpoint error:', error);

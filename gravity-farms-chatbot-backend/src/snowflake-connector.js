@@ -77,42 +77,28 @@ class SnowflakeConnector {
         if (this.isDemo) {
             await this.mockDelay();
             
-            // Simple mock response logic
+            // Demo mode responses based on user requirements
             const lowerMessage = userMessage.toLowerCase();
             
-            if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-                return mockResponses.greetings[Math.floor(Math.random() * mockResponses.greetings.length)];
+            // Check for specific keywords and return predefined responses
+            if (lowerMessage.includes('track')) {
+                return "Your order #1156 is currently out for delivery. Tracking: FedEx 123456789";
             }
             
-            if (lowerMessage.includes('help')) {
-                return mockResponses.generalHelp;
+            if (lowerMessage.includes('return')) {
+                return "I can help you return your order of Gravity Farms Joint Health Max. I'll email the return label to petlover87@gmailx.com";
             }
             
-            if (lowerMessage.includes('return') || lowerMessage.includes('refund')) {
-                return mockResponses.returnPolicy;
+            if (lowerMessage.includes('info')) {
+                return "Our food is made fresh, using real, recognizable stuff — like chicken, carrots, and sweet potatoes. No \"meat slurry,\" no \"natural flavoring,\" and absolutely no powdered unicorn horn (we checked, it's not FDA approved).";
             }
             
-            if (lowerMessage.includes('order') && !lowerMessage.includes('place')) {
-                const orders = await this.lookupOrder('demo@example.com');
-                if (orders.length > 0) {
-                    return `I found ${orders.length} recent order(s) for you:\n\n` +
-                           orders.map(o => `• Order ${o.orderId} (${o.status}) - $${o.totalAmount}`).join('\n') +
-                           '\n\nWould you like more details about any of these orders?';
-                }
-                return mockResponses.orderNotFound[0];
+            if (lowerMessage.includes('human')) {
+                return "Type your message here, and we'll send you an email when we're back online.";
             }
             
-            if (lowerMessage.includes('product') || lowerMessage.includes('food')) {
-                const products = await this.searchProducts(userMessage);
-                if (products.length > 0) {
-                    return `Here are some products that might interest you:\n\n` +
-                           products.slice(0, 3).map(p => `• ${p.name} - $${p.price}\n  ${p.description}`).join('\n\n');
-                }
-                return mockResponses.productNotFound[0];
-            }
-            
-            // Default response with context awareness
-            return `I understand you're asking about "${userMessage}". ${mockResponses.generalHelp}`;
+            // For any other query (except human), return the follow-up message
+            return "Is there anything else I can help with?";
         }
         
         const prompt = `System: ${context}
