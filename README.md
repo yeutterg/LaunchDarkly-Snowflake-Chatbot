@@ -63,6 +63,76 @@ LAUNCHDARKLY_SDK_KEY=sdk-xxxx-xxxx-xxxx
 DEMO_MODE=false
 ```
 
+### 🔍 Finding Your Snowflake Credentials
+
+**Account Identifier:**
+- Log into your Snowflake web interface
+- **Traditional format**: URL will be `https://your-account-identifier.snowflakecomputing.com`
+- **New format**: URL will be `https://app.snowflake.com/your-account-identifier`
+- Your account identifier is either:
+  - The part before `.snowflakecomputing.com` (traditional)
+  - The part after `app.snowflake.com/` (new format)
+
+**Username & Password:**
+- Use your Snowflake login credentials
+- For service accounts, create a dedicated user in Snowflake Admin → Users
+- Consider using key pair authentication for production
+
+**Warehouse, Database, Schema:**
+- **Warehouse**: Use `COMPUTE_WH` (default) or create a dedicated warehouse
+- **Database**: Create using the provided `snowflake-setup.sql` script
+- **Schema**: Will be created automatically by the setup script
+
+**Need help?** Contact your Snowflake administrator or refer to the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/admin-security-overview.html).
+
+### 🏗️ Running the Snowflake Setup Script
+
+To enable the chatbot to access product, order, and chat data, you must run the provided `snowflake-setup.sql` script in your Snowflake account. This script creates the required database, schema, and tables.
+
+#### 1. Download the Script
+
+The script is located at the project root as `snowflake-setup.sql`.
+
+#### 2. Open the Snowflake Web Interface
+
+You can use either the **Classic Console** (traditional interface) or the **Snowsight** (new interface):
+
+- **Classic Console:**  
+  Go to [https://<your-account-identifier>.snowflakecomputing.com](https://<your-account-identifier>.snowflakecomputing.com)
+- **Snowsight (New UI):**  
+  Go to [https://app.snowflake.com/<your-account-identifier>](https://app.snowflake.com/<your-account-identifier>)
+
+#### 3. Run the Script
+
+**A. Using the Classic Console:**
+1. Log in with your Snowflake credentials.
+2. Click on the **"Worksheets"** tab.
+3. Open a new worksheet.
+4. Copy the contents of `snowflake-setup.sql` and paste them into the worksheet.
+5. Click the **"Run"** button (or press `Ctrl+Enter`) to execute the script.
+
+**B. Using Snowsight (New UI):**
+1. Log in with your Snowflake credentials.
+2. Click on **"Data"** or **"Worksheets"** in the left sidebar.
+3. Click **"+ Worksheet"** to create a new worksheet.
+4. Copy and paste the contents of `snowflake-setup.sql` into the worksheet editor.
+5. Click **"Run"** (or press `Ctrl+Enter`) to execute.
+
+> **Tip:**  
+> You can also use the **"Upload File"** feature in Snowsight to upload and run the script directly.
+
+#### 4. Verify Setup
+
+After running the script, you should see the following objects in your Snowflake account:
+- Database: `GRAVITY_FARMS_PETFOOD_AI`
+- Schema: `CHATBOT`
+- Tables: `PRODUCTS`, `ORDERS`, `CHAT_HISTORY`
+
+If you encounter any errors, double-check your account permissions or contact your Snowflake administrator.
+
+For more details, see the [Snowflake Worksheets documentation](https://docs.snowflake.com/en/user-guide/ui-worksheets).
+
+
 Then run:
 
 ```bash
