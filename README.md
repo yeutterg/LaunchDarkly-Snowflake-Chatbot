@@ -121,6 +121,58 @@ You can use either the **Classic Console** (traditional interface) or the **Snow
 > **Tip:**  
 > You can also use the **"Upload File"** feature in Snowsight to upload and run the script directly.
 
+#### Snowflake worksheet quick selections (summary)
+
+- **Warehouse**: Use any small warehouse you have access to (e.g., `COMPUTE_WH`). For demos, an `XSMALL` is sufficient. If you need to create one:
+
+```sql
+CREATE WAREHOUSE IF NOT EXISTS GRAVITY_WH
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_SUSPEND = 60
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+USE WAREHOUSE GRAVITY_WH;
+```
+
+- **Database/Schema**: No pre-selection required. The script runs:
+  - `CREATE DATABASE IF NOT EXISTS GRAVITY_FARMS_PETFOOD_AI;`
+  - `USE DATABASE GRAVITY_FARMS_PETFOOD_AI;`
+  - `CREATE SCHEMA IF NOT EXISTS CHATBOT;`
+  - `USE SCHEMA CHATBOT;`
+
+- **Role to run the script**: A role with the following capabilities:
+  - Ability to switch to an admin role (script starts with `USE ROLE ACCOUNTADMIN;`) or use an equivalent admin role
+  - `USAGE` on the selected warehouse
+  - `CREATE DATABASE` at account level, and ability to `CREATE SCHEMA`, `CREATE TABLE`, `CREATE FUNCTION`
+
+#### Minimal runtime permissions (for the application)
+
+After running the setup, grant your app a least-privilege role. Replace names as needed.
+
+```sql
+CREATE ROLE IF NOT EXISTS APP_CHATBOT_ROLE;
+
+-- Warehouse access used by the app
+GRANT USAGE ON WAREHOUSE GRAVITY_WH TO ROLE APP_CHATBOT_ROLE;
+
+-- Database and schema access
+GRANT USAGE ON DATABASE GRAVITY_FARMS_PETFOOD_AI TO ROLE APP_CHATBOT_ROLE;
+GRANT USAGE ON SCHEMA GRAVITY_FARMS_PETFOOD_AI.CHATBOT TO ROLE APP_CHATBOT_ROLE;
+
+-- Tables (read/write as needed)
+GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA GRAVITY_FARMS_PETFOOD_AI.CHATBOT TO ROLE APP_CHATBOT_ROLE;
+GRANT SELECT, INSERT ON FUTURE TABLES IN SCHEMA GRAVITY_FARMS_PETFOOD_AI.CHATBOT TO ROLE APP_CHATBOT_ROLE;
+
+-- Functions
+GRANT USAGE ON ALL FUNCTIONS IN SCHEMA GRAVITY_FARMS_PETFOOD_AI.CHATBOT TO ROLE APP_CHATBOT_ROLE;
+GRANT USAGE ON FUTURE FUNCTIONS IN SCHEMA GRAVITY_FARMS_PETFOOD_AI.CHATBOT TO ROLE APP_CHATBOT_ROLE;
+
+-- Assign to user
+GRANT ROLE APP_CHATBOT_ROLE TO USER YOUR_USERNAME;
+```
+
+Optional (only if Snowflake AI/Cortex is enabled and your org requires explicit grants): grant `USAGE` on `SNOWFLAKE.CORTEX` or `SNOWFLAKE.AI` as per your governance.
+
 #### 4. Verify Setup
 
 After running the script, you should see the following objects in your Snowflake account:
@@ -132,16 +184,9 @@ If you encounter any errors, double-check your account permissions or contact yo
 
 #### 5. Troubleshooting Common Issues
 
-**"Unknown function CHATBOT_RESPONSE" Error:**
-- This error occurs if Snowflake Cortex is not available in your account or region
-- **Solution**: This is expected and won't affect the chatbot functionality
-- The chatbot will automatically use demo mode or alternative LLM services
-- You can safely ignore this error and continue with the setup
-
-**Cortex Availability:**
-- Snowflake Cortex is available in select regions and account types
-- If not available, the chatbot will fall back to demo mode with mock responses
-- For production use, consider using external LLM services (OpenAI, Anthropic, etc.)
+- **AI function returns fallback message**: If Snowflake AI/Cortex isn’t available to your account/role, `CHATBOT_RESPONSE` will return a fallback string. This is expected and the app can use demo mode or external LLMs.
+- **Insufficient privileges**: If you see errors creating the database/schema/tables/functions, rerun with an admin role (e.g., `ACCOUNTADMIN`) or a role that has `CREATE DATABASE`, `CREATE SCHEMA`, `CREATE TABLE`, and `CREATE FUNCTION`, plus `USAGE` on the selected warehouse.
+- **Indexes**: Snowflake doesn’t support user-defined indexes. The setup uses Snowflake’s automatic micro-partitioning; no index creation is required.
 
 For more details, see the [Snowflake Worksheets documentation](https://docs.snowflake.com/en/user-guide/ui-worksheets).
 

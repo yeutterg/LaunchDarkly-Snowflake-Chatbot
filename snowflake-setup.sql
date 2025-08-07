@@ -1,5 +1,6 @@
 -- Gravity Farms Petfood AI Chatbot - Snowflake Setup Script
 -- Run this script in your Snowflake console to set up the required database objects
+USE ROLE ACCOUNTADMIN;
 
 -- 1. Create Database and Schema
 CREATE DATABASE IF NOT EXISTS GRAVITY_FARMS_PETFOOD_AI;
@@ -46,10 +47,7 @@ CREATE TABLE IF NOT EXISTS CHAT_HISTORY (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_orders_email ON ORDERS(customer_email);
-CREATE INDEX IF NOT EXISTS idx_orders_date ON ORDERS(order_date);
-CREATE INDEX IF NOT EXISTS idx_chat_session ON CHAT_HISTORY(session_id, timestamp);
+-- Note: Snowflake manages micro-partitions automatically and does not support user-defined indexes.
 
 -- 3. Insert Sample Data
 -- Sample Products
@@ -103,8 +101,8 @@ VALUES
      38.97,
      PARSE_JSON('{"street": "789 Pine Rd", "city": "San Francisco", "state": "CA", "zip": "94102"}'));
 
--- 4. Create Cortex Functions (Optional - only if Cortex is available in your account)
--- Function for chat completions
+-- 4. Create AI Functions (Optional - only if AI services are available in your account)
+-- Function for chat completions - with fallback for when AI services are not available
 CREATE OR REPLACE FUNCTION CHATBOT_RESPONSE(
     prompt TEXT,
     context TEXT,
@@ -114,10 +112,22 @@ RETURNS TEXT
 LANGUAGE SQL
 AS
 $$
-    SELECT SNOWFLAKE.CORTEX.COMPLETE(
-        model_name,
-        CONCAT(context, '\n\nUser: ', prompt, '\n\nAssistant:')
-    )
+    SELECT CASE 
+        -- Try Snowflake Cortex if available
+        WHEN SNOWFLAKE.CORTEX.COMPLETE IS NOT NULL THEN
+            SNOWFLAKE.CORTEX.COMPLETE(
+                model_name,
+                CONCAT(context, '\n\nUser: ', prompt, '\n\nAssistant:')
+            )
+        -- Try Snowflake AI if available (newer syntax)
+        WHEN SNOWFLAKE.AI.COMPLETE IS NOT NULL THEN
+            SNOWFLAKE.AI.COMPLETE(
+                model_name,
+                CONCAT(context, '\n\nUser: ', prompt, '\n\nAssistant:')
+            )
+        -- Fallback message if no AI services available
+        ELSE 'AI services not available in this Snowflake account. Using demo mode.'
+    END
 $$;
 
 -- Function to search products with relevance scoring
@@ -164,9 +174,9 @@ SELECT COUNT(*) as order_count FROM ORDERS;
 -- Test product search function (this should work regardless of Cortex availability)
 SELECT * FROM TABLE(SEARCH_PRODUCTS_RANKED('dog food'));
 
--- Test Cortex function (this may fail if Cortex is not available - that's OK!)
--- If this fails, the chatbot will use demo mode or alternative LLM services
-SELECT 'Testing Cortex function...' as test_status;
+-- Test AI function (this may return fallback message if AI services are not available - that's OK!)
+-- If this returns a fallback message, the chatbot will use demo mode or alternative LLM services
+SELECT 'Testing AI function...' as test_status;
 SELECT CHATBOT_RESPONSE(
     'What products do you have for dogs?',
     'You are a helpful assistant for Gravity Farms Petfood.',
