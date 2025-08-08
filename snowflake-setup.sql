@@ -2,6 +2,15 @@
 -- Run this script in your Snowflake console to set up the required database objects
 USE ROLE ACCOUNTADMIN;
 
+-- Optional: choose or create a small warehouse for running this setup
+-- Uncomment to create/use a dedicated warehouse for the setup/demo
+-- CREATE WAREHOUSE IF NOT EXISTS GRAVITY_WH
+--   WAREHOUSE_SIZE = 'XSMALL'
+--   AUTO_SUSPEND = 60
+--   AUTO_RESUME = TRUE
+--   INITIALLY_SUSPENDED = TRUE;
+-- USE WAREHOUSE GRAVITY_WH;
+
 -- 1. Create Database and Schema
 CREATE DATABASE IF NOT EXISTS GRAVITY_FARMS_PETFOOD_AI;
 USE DATABASE GRAVITY_FARMS_PETFOOD_AI;
@@ -49,7 +58,63 @@ CREATE TABLE IF NOT EXISTS CHAT_HISTORY (
 
 -- Note: Snowflake manages micro-partitions automatically and does not support user-defined indexes.
 
--- 3. Insert Sample Data
+-- 3. Create AI Functions (safe fallback)
+-- Note: This section is placed BEFORE inserts so it succeeds even if no warehouse is active.
+-- Referencing SNOWFLAKE.AI/CORTEX in some accounts/roles may prevent function creation.
+-- To guarantee setup works everywhere, we provide a fallback-only function. You can later
+-- replace this with a Cortex-enabled variant if available in your account.
+CREATE OR REPLACE FUNCTION GRAVITY_FARMS_PETFOOD_AI.CHATBOT.CHATBOT_RESPONSE(
+    prompt TEXT,
+    context TEXT,
+    model_name TEXT DEFAULT 'mixtral-8x7b'
+)
+RETURNS TEXT
+LANGUAGE SQL
+AS $$
+    'AI services not available in this Snowflake account. Using demo mode.'
+$$;
+
+-- Function to search products with relevance scoring
+CREATE OR REPLACE FUNCTION GRAVITY_FARMS_PETFOOD_AI.CHATBOT.SEARCH_PRODUCTS_RANKED(search_query TEXT)
+RETURNS TABLE (
+    product_id VARCHAR,
+    name VARCHAR,
+    description TEXT,
+    category VARCHAR,
+    price DECIMAL(10,2),
+    relevance_score NUMBER
+)
+AS $$
+    WITH scored AS (
+        SELECT 
+            product_id,
+            name,
+            description,
+            category,
+            price,
+            (
+                CASE WHEN LOWER(name) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 10 ELSE 0 END +
+                CASE WHEN LOWER(description) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 5 ELSE 0 END +
+                CASE WHEN LOWER(category) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 3 ELSE 0 END +
+                CASE WHEN LOWER(ingredients) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 2 ELSE 0 END
+            ) AS relevance_score
+        FROM GRAVITY_FARMS_PETFOOD_AI.CHATBOT.PRODUCTS
+    )
+    SELECT 
+        product_id,
+        name,
+        description,
+        category,
+        price,
+        relevance_score
+    FROM scored
+    WHERE relevance_score > 0
+    ORDER BY relevance_score DESC
+    LIMIT 5
+$$;
+
+-- 4. Insert Sample Data (requires an active warehouse)
+-- Ensure your session has an active warehouse set (e.g., USE WAREHOUSE COMPUTE_WH;) before running.
 -- Sample Products
 INSERT INTO PRODUCTS (product_id, name, description, category, price, ingredients, nutritional_info)
 VALUES
@@ -101,8 +166,10 @@ VALUES
      38.97,
      PARSE_JSON('{"street": "789 Pine Rd", "city": "San Francisco", "state": "CA", "zip": "94102"}'));
 
--- 4. Create AI Functions (Optional - only if AI services are available in your account)
--- Function for chat completions - with fallback for when AI services are not available
+-- 4. Create AI Functions (safe fallback)
+-- Note: Referencing SNOWFLAKE.AI/CORTEX in some accounts/roles may prevent function creation.
+-- To guarantee setup works everywhere, we provide a fallback-only function. You can later
+-- replace this with a Cortex-enabled variant if available in your account.
 CREATE OR REPLACE FUNCTION CHATBOT_RESPONSE(
     prompt TEXT,
     context TEXT,
@@ -110,24 +177,8 @@ CREATE OR REPLACE FUNCTION CHATBOT_RESPONSE(
 )
 RETURNS TEXT
 LANGUAGE SQL
-AS
-$$
-    SELECT CASE 
-        -- Try Snowflake Cortex if available
-        WHEN SNOWFLAKE.CORTEX.COMPLETE IS NOT NULL THEN
-            SNOWFLAKE.CORTEX.COMPLETE(
-                model_name,
-                CONCAT(context, '\n\nUser: ', prompt, '\n\nAssistant:')
-            )
-        -- Try Snowflake AI if available (newer syntax)
-        WHEN SNOWFLAKE.AI.COMPLETE IS NOT NULL THEN
-            SNOWFLAKE.AI.COMPLETE(
-                model_name,
-                CONCAT(context, '\n\nUser: ', prompt, '\n\nAssistant:')
-            )
-        -- Fallback message if no AI services available
-        ELSE 'AI services not available in this Snowflake account. Using demo mode.'
-    END
+AS $$
+    'AI services not available in this Snowflake account. Using demo mode.'
 $$;
 
 -- Function to search products with relevance scoring
@@ -140,21 +191,30 @@ RETURNS TABLE (
     price DECIMAL(10,2),
     relevance_score NUMBER
 )
-AS
-$$
+AS $$
+    WITH scored AS (
+        SELECT 
+            product_id,
+            name,
+            description,
+            category,
+            price,
+            (
+                CASE WHEN LOWER(name) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 10 ELSE 0 END +
+                CASE WHEN LOWER(description) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 5 ELSE 0 END +
+                CASE WHEN LOWER(category) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 3 ELSE 0 END +
+                CASE WHEN LOWER(ingredients) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 2 ELSE 0 END
+            ) AS relevance_score
+        FROM PRODUCTS
+    )
     SELECT 
         product_id,
         name,
         description,
         category,
         price,
-        (
-            CASE WHEN LOWER(name) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 10 ELSE 0 END +
-            CASE WHEN LOWER(description) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 5 ELSE 0 END +
-            CASE WHEN LOWER(category) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 3 ELSE 0 END +
-            CASE WHEN LOWER(ingredients) LIKE LOWER(CONCAT('%', search_query, '%')) THEN 2 ELSE 0 END
-        ) as relevance_score
-    FROM PRODUCTS
+        relevance_score
+    FROM scored
     WHERE relevance_score > 0
     ORDER BY relevance_score DESC
     LIMIT 5
@@ -167,18 +227,20 @@ $$;
 -- GRANT USAGE ON ALL FUNCTIONS IN SCHEMA CHATBOT TO ROLE <your_app_role>;
 
 -- 6. Verify Setup
-SELECT 'Database Setup Complete!' as status;
-SELECT COUNT(*) as product_count FROM PRODUCTS;
-SELECT COUNT(*) as order_count FROM ORDERS;
+USE DATABASE GRAVITY_FARMS_PETFOOD_AI;
+USE SCHEMA CHATBOT;
 
--- Test product search function (this should work regardless of Cortex availability)
-SELECT * FROM TABLE(SEARCH_PRODUCTS_RANKED('dog food'));
+SELECT 'Database Setup Complete!' AS status;
+SELECT COUNT(*) AS product_count FROM PRODUCTS;
+SELECT COUNT(*) AS order_count FROM ORDERS;
 
--- Test AI function (this may return fallback message if AI services are not available - that's OK!)
--- If this returns a fallback message, the chatbot will use demo mode or alternative LLM services
-SELECT 'Testing AI function...' as test_status;
-SELECT CHATBOT_RESPONSE(
+-- Test product search function
+SELECT * FROM TABLE(GRAVITY_FARMS_PETFOOD_AI.CHATBOT.SEARCH_PRODUCTS_RANKED('dog food'));
+
+-- Test AI function (returns fallback string by design in this setup script)
+SELECT 'Testing AI function...' AS test_status;
+SELECT GRAVITY_FARMS_PETFOOD_AI.CHATBOT.CHATBOT_RESPONSE(
     'What products do you have for dogs?',
     'You are a helpful assistant for Gravity Farms Petfood.',
     'mixtral-8x7b'
-) as test_response;
+) AS test_response;
