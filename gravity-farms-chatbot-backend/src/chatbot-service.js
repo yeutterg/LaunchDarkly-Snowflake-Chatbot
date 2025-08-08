@@ -1,9 +1,9 @@
-const { SnowflakeSQLRestConnector } = require('./snowflake-sql-rest-connector');
+const { SnowflakeSDKConnector } = require('./snowflake-sdk-connector');
 const { getLaunchDarklyClients } = require('./launchdarkly-ai-client');
 
 class ChatbotService {
     constructor() {
-        this.snowflake = new SnowflakeSQLRestConnector();
+        this.snowflake = new SnowflakeSDKConnector();
         this.isInitialized = false;
     }
     

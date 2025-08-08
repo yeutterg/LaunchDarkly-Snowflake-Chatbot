@@ -1,6 +1,7 @@
 const { getLaunchDarklyClients } = require('./launchdarkly-ai-client');
+const snowflake = require('snowflake-sdk');
 
-class SnowflakeSQLRestConnector {
+class SnowflakeSDKConnector {
     constructor() {
         // Check if DEMO_MODE is explicitly set to true
         this.isDemo = process.env.DEMO_MODE === 'true';
@@ -12,40 +13,52 @@ class SnowflakeSQLRestConnector {
         }
         
         if (this.isDemo) {
-            console.log('🎮 Running in DEMO MODE - Using mock data instead of Snowflake SQL REST API');
+            console.log('🎮 Running in DEMO MODE - Using mock data instead of Snowflake SDK');
         } else {
-            console.log('🚀 Running in PRODUCTION MODE - Using Snowflake SQL REST API and LaunchDarkly AI Configs');
+            console.log('🚀 Running in PRODUCTION MODE - Using Snowflake SDK and LaunchDarkly AI Configs');
             console.log('✅ Cortex SQL functions confirmed available in your account');
+            
+            // Configure Snowflake connection
+            this.connection = snowflake.createConnection({
+                account: process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER,
+                username: process.env.SNOWFLAKE_USERNAME || 'your_username',
+                password: process.env.SNOWFLAKE_PASSWORD || 'your_password',
+                warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
+                database: 'SNOWFLAKE',
+                schema: 'CORTEX'
+            });
         }
     }
 
-    async snowflakeSQLRestClient(sqlQuery) {
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SNOWFLAKE_PAT}`,
-            'Accept': 'application/json',
-            'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT'
-        };
+    async connectToSnowflake() {
+        return new Promise((resolve, reject) => {
+            this.connection.connect((err, conn) => {
+                if (err) {
+                    console.error('❌ Failed to connect to Snowflake:', err);
+                    reject(err);
+                } else {
+                    console.log('✅ Connected to Snowflake successfully');
+                    resolve(conn);
+                }
+            });
+        });
+    }
 
-        const body = {
-            statement: sqlQuery,
-            timeout: 60,
-            database: 'SNOWFLAKE',
-            schema: 'CORTEX',
-            warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'
-        };
-
-        // Use the correct Snowflake REST API endpoint
-        const baseUrl = `https://${process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER}.snowflakecomputing.com`;
-        const url = `${baseUrl}/api/v2/statements`;
-        
-        console.log('🔗 Snowflake SQL REST URL:', url);
-        console.log('🔗 Account Identifier:', process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER);
-        
-        return fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
+    async executeSQL(sqlQuery) {
+        return new Promise((resolve, reject) => {
+            this.connection.execute({
+                sqlText: sqlQuery,
+                complete: (err, stmt, rows) => {
+                    if (err) {
+                        console.error('❌ SQL execution failed:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ SQL executed successfully');
+                        console.log('📊 Result rows:', rows);
+                        resolve(rows);
+                    }
+                }
+            });
         });
     }
 
@@ -182,6 +195,9 @@ class SnowflakeSQLRestConnector {
 
             const durationStart = Date.now();
 
+            // Connect to Snowflake
+            await this.connectToSnowflake();
+
             // Convert messages to SQL format
             const messagesForSQL = config.messages.map(msg => ({
                 role: msg.role,
@@ -197,34 +213,16 @@ class SnowflakeSQLRestConnector {
                 ) as response
             `;
 
-            console.log('🚀 Making Snowflake SQL REST call with:');
+            console.log('🚀 Making Snowflake SDK call with:');
             console.log('   Model:', config.model.name);
             console.log('   Messages count:', config.messages.length);
             console.log('   SQL Query:', sqlQuery);
             
-            const run = await this.snowflakeSQLRestClient(sqlQuery);
+            const result = await this.executeSQL(sqlQuery);
 
-            console.log('📡 Snowflake SQL REST response status:', run.status);
-            console.log('📡 Snowflake SQL REST response headers:', Object.fromEntries(run.headers.entries()));
+            console.log('📡 Snowflake SDK result:', result);
 
             const durationEnd = Date.now();
-            const responseText = await run.text();
-            console.log('📄 Raw response text (first 500 chars):', responseText.substring(0, 500));
-            
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('❌ Failed to parse JSON response:', parseError);
-                console.error('📄 Full response text:', responseText);
-                
-                // Check if it's a 404 error (Cortex not available)
-                if (responseText.includes('Error 404 Not Found')) {
-                    throw new Error('Snowflake Cortex API not available. Please enable Cortex in your Snowflake account or contact Snowflake support.');
-                }
-                
-                throw new Error('Invalid JSON response from Snowflake SQL REST API');
-            }
 
             // Track successful completion
             tracker.trackSuccess();
@@ -239,7 +237,7 @@ class SnowflakeSQLRestConnector {
             }
 
             // Extract the response from the SQL result
-            const response = result.data?.[0]?.[0] ?? "No response from Snowflake SQL REST";
+            const response = result?.[0]?.RESPONSE ?? "No response from Snowflake SDK";
 
             return { response, model: config.model.name };
         } catch (error) {
@@ -281,7 +279,7 @@ class SnowflakeSQLRestConnector {
         }
 
         // For production, you would implement SQL queries to your Snowflake data
-        console.log('Product search not implemented for SQL REST interface yet');
+        console.log('Product search not implemented for SDK interface yet');
         return [];
     }
 
@@ -307,9 +305,9 @@ class SnowflakeSQLRestConnector {
         }
 
         // For production, you would implement SQL queries to your Snowflake data
-        console.log('Order lookup not implemented for SQL REST interface yet');
+        console.log('Order lookup not implemented for SDK interface yet');
         return [];
     }
 }
 
-module.exports = { SnowflakeSQLRestConnector }; 
+module.exports = { SnowflakeSDKConnector }; 
