@@ -18,7 +18,8 @@
     "@launchdarkly/node-server-sdk": "^9.10.0",
     "@launchdarkly/server-sdk-ai": "^0.9.9",
     "uuid": "^9.0.1",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "snowflake-sdk": "^1.6.25"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

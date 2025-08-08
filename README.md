@@ -95,7 +95,7 @@ Update the `.env` file with your credentials:
 
 ```bash
 # Snowflake REST API Configuration
-SNOWFLAKE_ACCOUNT_IDENTIFIER=your_account_identifier.snowflakecomputing.com
+SNOWFLAKE_ACCOUNT_IDENTIFIER=your_account_identifier
 SNOWFLAKE_PAT=your_personal_access_token
 
 # LaunchDarkly Configuration
@@ -194,7 +194,7 @@ Your account identifier is either:
 - The part before `.snowflakecomputing.com` (classic)
 - The part after `app.snowflake.com/` (Snowsight)
 
-Paste this into `.env` under `SNOWFLAKE_ACCOUNT_IDENTIFIER` and be sure to postpend `.snowflakecomputing.com` so that the whole URL looks like `your-account-identifier.snowflakecomputing.com`
+Paste this into `.env` under `SNOWFLAKE_ACCOUNT_IDENTIFIER`
 
 ### 4. Run in Production Mode
 
