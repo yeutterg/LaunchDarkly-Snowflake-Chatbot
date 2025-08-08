@@ -76,65 +76,7 @@ Try these demo queries:
 
 ## 🔧 Production Setup
 
-### 1. LaunchDarkly AI Config Setup
-
-#### Create an AI Config in LaunchDarkly
-
-1. Navigate to your LaunchDarkly instance and go to "AI Configs"
-2. Click "Create AI Config" on the top-right side
-3. Give your Config a name (e.g., "gravity-farms-chatbot-config")
-4. Select "Cortex" from the provider dropdown
-5. Choose a model (e.g., `claude-3-5-sonnet` or `mixtral-8x7b`)
-6. Add your messages for the completion:
-
-**System Message:**
-```
-You are a friendly and knowledgeable customer service representative for Gravity Farms Petfood, a premium pet food store. You have access to order information, product details, and can help with returns. Always be helpful, concise, and empathetic to pet owners' concerns.
-
-Context: {{context}}
-```
-
-**User Message Template:**
-```
-{{userInput}}
-```
-
-7. Click "Review and save"
-
-#### Configure Targeting
-
-1. Click the "Targeting" tab on your AI Config
-2. Click "Edit" on the default rule
-3. Select your variation from the dropdown
-4. Click "Review and save" and confirm the changes
-
-#### Copy the Config Key
-
-1. Copy the key from the sidebar (e.g., "gravity-farms-chatbot-config")
-2. Add this key to your `.env` file as `LAUNCHDARKLY_AI_CONFIG_KEY`
-
-### 2. Snowflake Setup
-
-#### Create Personal Access Token
-
-1. Log into your Snowflake web interface
-2. Go to **Admin** → **Users** → **Your Username**
-3. Click **"Keys & Tokens"**
-4. Click **"Create Token"**
-5. Set an expiration date and copy the token
-6. Make sure your user has the `SNOWFLAKE.CORTEX_USER` role
-
-#### Account Identifier
-
-Find your account identifier:
-- **Traditional format**: URL will be `https://your-account-identifier.snowflakecomputing.com`
-- **New format**: URL will be `https://app.snowflake.com/your-account-identifier`
-
-Your account identifier is either:
-- The part before `.snowflakecomputing.com` (traditional)
-- The part after `app.snowflake.com/` (new format)
-
-### 3. Environment Configuration
+### 1. Environment Configuration
 
 Copy the example environment file and configure it:
 
@@ -163,6 +105,93 @@ DEMO_MODE=false
 # Frontend API URL (for ChatWidget integration)
 REACT_APP_API_URL=http://localhost:3001
 ```
+
+### 2. LaunchDarkly AI Configs Setup
+
+#### Create an AI Config in LaunchDarkly
+
+1. Navigate to your LaunchDarkly instance and go to "AI Configs"
+2. Click "Create AI Config" on the top-right side
+3. Give your Config a name: "gravity-farms-chatbot-config"
+4. Give the variation a name: "Claude Sonnet"
+4. Select "Cortex" from the provider dropdown
+5. Choose a model (e.g., `claude-3-5-sonnet` or similar)
+6. Add your system message for the completion (paste the following):
+
+**System Message:**
+```
+You are a friendly and knowledgeable customer service representative for Gravity Farms Petfood, a premium pet food store. You have access to order information, product details, and can help with returns. Always be helpful, concise, and empathetic to pet owners' concerns.
+
+Context: {{context}}
+```
+
+7. Add your user message: Click "Add another message", then change the Role to "user." Then paste the following:
+
+**User Message Template:**
+```
+{{userInput}}
+```
+
+7. Click "Review and save"
+
+#### Configure Targeting
+
+1. Click the "Targeting" tab on your AI Config
+2. Click "Edit" on the default rule
+3. Select your "Claude" variation from the dropdown
+4. Click "Review and save" and confirm the changes
+
+#### Copy the Config Key
+
+1. Copy the key from the sidebar (e.g., "gravity-farms-chatbot-config")
+2. Add this key to your `.env` file as `LAUNCHDARKLY_AI_CONFIG_KEY`
+
+### 3. Snowflake Setup
+
+#### Create Personal Access Token
+
+1. Log into your Snowflake web interface
+2. Go to **Admin** → **Users & roles** → **Your Username**
+3. Under Programmatic access tokens, click **"Generate new token"**
+4. Give it a name like "LD-Cortex-Chatbot" and an appropriate expiration date. Choose the appropriate role (for me it was ACCOUNTADMIN"). Click **"Generate"**
+5. Copy the token, then paste it into `.env` as `SNOWFLAKE_PAT`
+6. Make sure your user has the `SNOWFLAKE.CORTEX_USER` role
+
+#### Create Network Policy
+
+If you see a warning about a missing network policy, do the following (instructions only for the new Snowsight interface):
+
+1. In Snowflake, go to **Admin** → **Security** → **Network Policies**
+2. Ensure your Role is set to an Admin role, such as ACCOUNTADMIN (click on your name at the bottom left, then **Switch Role**)
+3. Click **"+ Network Policy"**
+4. Give it a name like "LDCORTEXCHATBOT"
+5. In the comment box, add a description like "Network policy for LaunchDarkly + Snowflake Cortex chatbot demo"
+6. Click **New rule**
+7. Give it a name like "[yourname]MacBook" (no spaces allowed) and select the appropriate database (e.g. FARM_FRESH_PET)
+8. Under Type, select IPv4 and Ingress
+9. Find your public IPv4 address by running the following in your Terminal:
+```bash
+curl -4 -s ifconfig.me
+```
+10. In **Search or add identifier,** paste your IPv4 address and hit Return on your keyboard.
+11. Click **Create Network Rule**
+12. Click **Create Network Policy**
+13. Go back to **Settings** → **Admin** → **Users & roles** → **Your Username**
+14. Ensure there is no longer a warning about a Network Policy, and that your role (e.g. ACCOUNTADMIN) is now listed under Privileges.
+
+Your PAT will now only work from the allowed IP addresses.
+
+#### Account Identifier
+
+Look at the URL bar to find your account identifier:
+- **Classic interface**: URL will be `https://your-account-identifier.snowflakecomputing.com`
+- **New Snowsight interface**: URL will be `https://app.snowflake.com/your-account-identifier`
+
+Your account identifier is either:
+- The part before `.snowflakecomputing.com` (classic)
+- The part after `app.snowflake.com/` (Snowsight)
+
+Paste this into `.env` under `SNOWFLAKE_ACCOUNT_IDENTIFIER` and be sure to postpend `.snowflakecomputing.com` so that the whole URL looks like `your-account-identifier.snowflakecomputing.com`
 
 ### 4. Run in Production Mode
 
