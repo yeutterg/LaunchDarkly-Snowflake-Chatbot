@@ -36,22 +36,65 @@ class SnowflakeRestConnector {
             const lowerMessage = userMessage.toLowerCase();
             
             if (lowerMessage.includes('track')) {
-                return "Your order #1156 is currently out for delivery. Tracking: FedEx 123456789";
+                return {
+                    response: "Your order #1156 is currently out for delivery. Tracking: FedEx 123456789",
+                    model: "demo-mode"
+                };
             }
             
             if (lowerMessage.includes('return')) {
-                return "I can help you return your order of Gravity Farms Joint Health Max. I'll email the return label to petlover87@gmailx.com";
+                return {
+                    response: "I can help you return your order of Gravity Farms Joint Health Max. I'll email the return label to petlover87@gmailx.com",
+                    model: "demo-mode"
+                };
             }
             
             if (lowerMessage.includes('info')) {
-                return "Our food is made fresh, using real, recognizable stuff — like chicken, carrots, and sweet potatoes. No \"meat slurry,\" no \"natural flavoring,\" and absolutely no powdered unicorn horn (we checked, it's not FDA approved).";
+                return {
+                    response: "Our food is made fresh, using real, recognizable stuff — like chicken, carrots, and sweet potatoes. No \"meat slurry,\" no \"natural flavoring,\" and absolutely no powdered unicorn horn (we checked, it's not FDA approved).",
+                    model: "demo-mode"
+                };
             }
             
             if (lowerMessage.includes('human')) {
-                return "Type your message here, and we'll send you an email when we're back online.";
+                return {
+                    response: "Type your message here, and we'll send you an email when we're back online.",
+                    model: "demo-mode"
+                };
             }
             
-            return "Is there anything else I can help with?";
+            if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+                return {
+                    response: "Hello! I'm here to help with your Gravity Farms Petfood orders, products, and returns. How can I assist you today?",
+                    model: "demo-mode"
+                };
+            }
+            
+            if (lowerMessage.includes('product') || lowerMessage.includes('food')) {
+                return {
+                    response: "We have several great options! Our most popular products include:\n• Gravity Farms Joint Health Max ($29.99)\n• Gravity Farms Omega Plus ($24.99)\n• Premium Dog Food ($34.99)\n• Cat Food ($24.99)\n\nWould you like to know more about any specific product?",
+                    model: "demo-mode"
+                };
+            }
+            
+            if (lowerMessage.includes('price') || lowerMessage.includes('cost')) {
+                return {
+                    response: "Our prices range from $24.99 to $34.99 depending on the product. We also offer free shipping on orders over $50!",
+                    model: "demo-mode"
+                };
+            }
+            
+            if (lowerMessage.includes('help')) {
+                return {
+                    response: "I can help you with:\n• Tracking orders\n• Product information\n• Returns and refunds\n• Store information\n• Pricing questions\n\nJust let me know what you need!",
+                    model: "demo-mode"
+                };
+            }
+            
+            return {
+                response: "I'm here to help with your Gravity Farms Petfood needs! You can ask me about orders, products, returns, or anything else. What would you like to know?",
+                model: "demo-mode"
+            };
         }
 
         try {
