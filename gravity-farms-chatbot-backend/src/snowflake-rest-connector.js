@@ -20,6 +20,8 @@ class SnowflakeRestConnector {
             console.log('🎮 Running in DEMO MODE - Using mock data instead of Snowflake REST API');
         } else {
             console.log('🚀 Running in PRODUCTION MODE - Using Snowflake REST API and LaunchDarkly AI Configs');
+            console.log('⚠️  Note: Snowflake Cortex must be enabled in your account for this to work');
+            console.log('📞 Contact Snowflake support to enable Cortex if you encounter 404 errors');
         }
     }
 
@@ -193,6 +195,12 @@ class SnowflakeRestConnector {
             } catch (parseError) {
                 console.error('❌ Failed to parse JSON response:', parseError);
                 console.error('📄 Full response text:', responseText);
+                
+                // Check if it's a 404 error (Cortex not available)
+                if (responseText.includes('Error 404 Not Found')) {
+                    throw new Error('Snowflake Cortex API not available. Please enable Cortex in your Snowflake account or contact Snowflake support.');
+                }
+                
                 throw new Error('Invalid JSON response from Snowflake API');
             }
 
@@ -214,7 +222,8 @@ class SnowflakeRestConnector {
             return { response, model: config.model.name };
         } catch (error) {
             console.error('Error generating response:', error);
-            return { response: 'I apologize, but I encountered an error. Please try again.', model: 'error' };
+            // Re-throw the error so it can be handled by the chatbot service
+            throw error;
         }
     }
 

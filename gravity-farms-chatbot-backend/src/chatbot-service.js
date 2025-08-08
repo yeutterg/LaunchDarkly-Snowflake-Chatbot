@@ -106,8 +106,19 @@ class ChatbotService {
             metrics.error = error.message;
             metrics.responseTime = Date.now() - startTime;
             
+            // Create a user-friendly error message based on the error type
+            let userMessage = 'I apologize, but I encountered an error. Please try again.';
+            
+            if (error.message.includes('Snowflake Cortex API not available')) {
+                userMessage = '🔧 **Configuration Issue Detected**\n\nI\'m unable to connect to Snowflake Cortex AI service. This usually means:\n\n• Snowflake Cortex is not enabled for your account\n• Contact Snowflake support to enable Cortex\n• Or switch to demo mode for testing\n\n**Status:** AI Config streaming ✅ | Snowflake Cortex ❌';
+            } else if (error.message.includes('Unknown feature flag') || error.message.includes('Malformed AI config')) {
+                userMessage = '🔧 **LaunchDarkly Configuration Issue**\n\nI\'m unable to find the AI configuration in LaunchDarkly. This usually means:\n\n• The AI config `gravity-farms-chatbot-config` doesn\'t exist\n• Create the AI config in your LaunchDarkly project\n• Or set DEMO_MODE=true in your environment\n\n**Status:** LaunchDarkly AI Config ❌ | Demo Mode Available ✅';
+            } else if (error.message.includes('Invalid JSON response')) {
+                userMessage = '🔧 **API Connection Issue**\n\nI\'m getting an invalid response from the AI service. This could be:\n\n• Network connectivity issues\n• Service temporarily unavailable\n• Authentication problems\n\n**Status:** Service Connection ❌ | Please try again later';
+            }
+            
             return {
-                response: 'I apologize, but I encountered an error. Please try again.',
+                response: userMessage,
                 model: 'error',
                 metrics: metrics
             };
