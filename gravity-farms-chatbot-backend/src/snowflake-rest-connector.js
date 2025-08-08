@@ -116,32 +116,85 @@ class SnowflakeRestConnector {
             };
 
             // Retrieve the AI Config from the LD SDK
+            const configKey = process.env.LAUNCHDARKLY_AI_CONFIG_KEY || 'gravity-farms-chatbot-config';
+            console.log('🔍 Attempting to retrieve AI config:', configKey);
+            
             const config = await aiClient.config(
-                process.env.LAUNCHDARKLY_AI_CONFIG_KEY || 'gravity-farms-chatbot-config',
+                configKey,
                 userContext,
                 {},
                 { userInput: userMessage, context }
             );
+
+            console.log('📦 Raw AI config received (safe):', {
+                enabled: config.enabled,
+                model: config.model,
+                messages: config.messages,
+                hasTracker: !!config.tracker
+            });
 
             // Extract the tracker from the AI Config
             const { tracker } = config;
 
             // Check that the config is enabled and conforms to the expected shape
             if (!config.enabled || !config.model || !config.messages) {
+                console.log('❌ AI config validation failed:');
+                console.log('   - enabled:', config.enabled);
+                console.log('   - model:', config.model);
+                console.log('   - messages:', config.messages);
                 tracker.trackError();
                 throw new Error("Malformed AI config");
             }
 
+            // Print the AI config details for debugging
+            console.log('🎯 LaunchDarkly AI Config Retrieved Successfully:');
+            console.log('📋 Config Name:', process.env.LAUNCHDARKLY_AI_CONFIG_KEY || 'gravity-farms-chatbot-config');
+            console.log('✅ Enabled:', config.enabled);
+            console.log('🤖 Model:', config.model?.name || 'N/A');
+            console.log('⚙️  Model Parameters:', JSON.stringify(config.model, null, 2));
+            console.log('💬 Messages Count:', config.messages?.length || 0);
+            console.log('📝 Messages Preview:');
+            if (config.messages && config.messages.length > 0) {
+                config.messages.forEach((msg, index) => {
+                    console.log(`   ${index + 1}. Role: ${msg.role}`);
+                    console.log(`      Content: ${msg.content?.substring(0, 100)}${msg.content?.length > 100 ? '...' : ''}`);
+                });
+            }
+            console.log('🔧 Full Config (safe):', {
+                enabled: config.enabled,
+                model: config.model,
+                messagesCount: config.messages?.length,
+                hasTracker: !!config.tracker
+            });
+            console.log('─'.repeat(80));
+
             const durationStart = Date.now();
 
             // Make the call to the Snowflake API
+            console.log('🚀 Making Snowflake API call with:');
+            console.log('   Model:', config.model.name);
+            console.log('   Messages count:', config.messages.length);
+            
             const run = await this.snowflakeCompletionClient({
                 model: config.model.name,
                 messages: config.messages,
             });
 
+            console.log('📡 Snowflake API response status:', run.status);
+            console.log('📡 Snowflake API response headers:', Object.fromEntries(run.headers.entries()));
+
             const durationEnd = Date.now();
-            const result = await run.json();
+            const responseText = await run.text();
+            console.log('📄 Raw response text (first 500 chars):', responseText.substring(0, 500));
+            
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ Failed to parse JSON response:', parseError);
+                console.error('📄 Full response text:', responseText);
+                throw new Error('Invalid JSON response from Snowflake API');
+            }
 
             // Track successful completion
             tracker.trackSuccess();
