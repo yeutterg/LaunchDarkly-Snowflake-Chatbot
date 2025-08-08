@@ -4,14 +4,14 @@ A production-ready AI-powered customer service chatbot for Gravity Farms Petfood
 
 ## 🚀 Quick Start with Docker (Recommended)
 
-### 1. Run Complete Application (Backend + Frontend with ChatWidget)
+### 1. Run Complete Application (Backend + Frontend + ChatWidget)
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd <repository-name>
 
-# Start both backend and the existing Gravity Farms frontend with ChatWidget
+# Start everything: backend API + frontend website + chat widget
 docker-compose --profile demo up
 
 # 📱 Gravity Farms Frontend: http://localhost:3000
@@ -19,7 +19,10 @@ docker-compose --profile demo up
 # 💬 Chat button appears in bottom-right corner
 ```
 
-The existing Gravity Farms website now includes the AI chatbot widget. No credentials needed for demo mode!
+This runs the complete application with:
+- **Backend API** (Express.js + Snowflake + LaunchDarkly)
+- **Frontend Website** (Gravity Farms website with embedded chat widget)
+- **Demo Mode** (no credentials needed - uses mock data)
 
 ### 2. Run Backend Only (For Integration)
 
@@ -287,56 +290,32 @@ With this setup, you can now:
 - Use HTTPS in production environments
 - Rotate Personal Access Tokens regularly
 
-## 🚢 Deployment Options
+## 🚢 Local Docker Deployment
 
-### Using Docker Hub
+The application is optimized for local development and testing using Docker Compose:
 
+### Quick Start
 ```bash
-# Build and push to Docker Hub
-docker build -t yourusername/gravity-farms-chatbot ./gravity-farms-chatbot-backend
-docker push yourusername/gravity-farms-chatbot
+# Run everything locally
+docker-compose --profile demo up
 
-# Run from Docker Hub
-docker run -p 3001:3001 -e DEMO_MODE=true yourusername/gravity-farms-chatbot
+# Access the application
+# 📱 Frontend: http://localhost:3000
+# 🔌 API: http://localhost:3001
 ```
 
-### Cloud Deployment
+### Production Mode
+```bash
+# 1. Set up your .env file with real credentials
+# 2. Update docker-compose.yml to set DEMO_MODE=false
+# 3. Run in production mode
+docker-compose up chatbot-backend
+```
 
-The Docker image is compatible with:
-- **AWS ECS/Fargate**
-- **Google Cloud Run**
-- **Azure Container Instances**
-- **Heroku** (with container registry)
-- **DigitalOcean App Platform**
-
-### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: gravity-farms-chatbot
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: chatbot
-  template:
-    metadata:
-      labels:
-        app: chatbot
-    spec:
-      containers:
-      - name: chatbot
-        image: gravity-farms-chatbot:latest
-        ports:
-        - containerPort: 3001
-        env:
-        - name: DEMO_MODE
-          value: "false"
-        envFrom:
-        - secretRef:
-            name: chatbot-secrets
+### Development Mode
+```bash
+# Run backend only for integration with existing frontends
+docker-compose up chatbot-backend
 ```
 
 ## 🧪 Testing

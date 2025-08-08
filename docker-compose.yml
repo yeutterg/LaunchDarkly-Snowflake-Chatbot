@@ -47,7 +47,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - VITE_API_URL=http://localhost:3001
       - BROWSER=none  # Prevent auto-opening browser
     command: >
       sh -c "
