@@ -1,18 +1,9 @@
-const { SnowflakeConnector } = require('./snowflake-connector');
-const { LDChatbotConfig } = require('./launchdarkly-config');
+const { SnowflakeRestConnector } = require('./snowflake-rest-connector');
+const { getLaunchDarklyClients } = require('./launchdarkly-ai-client');
 
 class ChatbotService {
     constructor() {
-        this.snowflake = new SnowflakeConnector({
-            account: process.env.SNOWFLAKE_ACCOUNT,
-            username: process.env.SNOWFLAKE_USER,
-            password: process.env.SNOWFLAKE_PASSWORD,
-            warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
-            database: process.env.SNOWFLAKE_DATABASE || 'GRAVITY_FARMS_PETFOOD_AI',
-            schema: process.env.SNOWFLAKE_SCHEMA || 'CHATBOT'
-        });
-        
-        this.ldConfig = new LDChatbotConfig(process.env.LAUNCHDARKLY_SDK_KEY);
+        this.snowflake = new SnowflakeRestConnector();
         this.isInitialized = false;
     }
     
@@ -20,8 +11,8 @@ class ChatbotService {
         if (this.isInitialized) return;
         
         try {
-            await this.snowflake.connect();
-            await this.ldConfig.initialize();
+            // Initialize LaunchDarkly clients
+            await getLaunchDarklyClients();
             this.isInitialized = true;
             
             if (process.env.DEMO_MODE === 'true') {
@@ -56,21 +47,6 @@ class ChatbotService {
         };
         
         try {
-            const userContext = { 
-                key: sessionId, 
-                email: userEmail,
-                custom: {
-                    sessionStartTime: new Date().toISOString()
-                }
-            };
-            
-            const [systemPrompt, modelConfig] = await Promise.all([
-                this.ldConfig.getSystemPrompt(userContext),
-                this.ldConfig.getModelConfig(userContext)
-            ]);
-            
-            metrics.model = modelConfig.model;
-            
             const intent = await this.detectIntent(message);
             metrics.intent = intent;
             
@@ -100,50 +76,41 @@ class ChatbotService {
                     contextData = await this.snowflake.searchProducts(searchTerm);
                     
                     if (contextData && contextData.length > 0) {
-                        context = `Relevant Products:\n${JSON.stringify(contextData, null, 2)}`;
+                        context = `Available Products:\n${JSON.stringify(contextData, null, 2)}`;
                     } else {
-                        context = 'No products found matching the search criteria.';
+                        context = 'No products found matching your search.';
                     }
-                    break;
-                    
-                case 'return_request':
-                    context = `Return Policy: Customers can return unopened products within 30 days of purchase for a full refund. Opened products can be returned within 14 days if the pet has an adverse reaction, with veterinary documentation.`;
                     break;
                     
                 default:
-                    const recentHistory = await this.snowflake.getChatHistory(sessionId, 5);
-                    if (recentHistory.length > 0) {
-                        context = `Recent conversation:\n${recentHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}`;
-                    }
+                    context = 'You are a helpful customer service representative for Gravity Farms Petfood.';
             }
             
-            const finalPrompt = `${systemPrompt}\n\nContext:\n${context}`;
-            
-            const response = await this.snowflake.generateResponse(
-                message,
-                finalPrompt,
-                modelConfig.model
-            );
-            
-            await this.snowflake.saveChatHistory(sessionId, message, response);
+            // Generate response using the new REST-based approach
+            const result = await this.snowflake.generateResponse(message, context, sessionId);
             
             metrics.responseTime = Date.now() - startTime;
-            await this.ldConfig.trackChatMetrics(userContext, metrics);
+            metrics.model = result.model || 'unknown';
             
-            return response;
+            // Save chat history (simplified for now)
+            await this.saveChatHistory(sessionId, message, result.response);
+            
+            return {
+                response: result.response,
+                model: result.model,
+                metrics: metrics
+            };
             
         } catch (error) {
             console.error('Error processing message:', error);
             metrics.error = error.message;
-            metrics.errorType = error.constructor.name;
             metrics.responseTime = Date.now() - startTime;
             
-            await this.ldConfig.trackChatMetrics(
-                { key: sessionId, email: userEmail },
-                metrics
-            );
-            
-            return 'I apologize, but I encountered an error processing your request. Please try again or contact our support team for assistance.';
+            return {
+                response: 'I apologize, but I encountered an error. Please try again.',
+                model: 'error',
+                metrics: metrics
+            };
         }
     }
     
@@ -195,17 +162,22 @@ class ChatbotService {
         return relevantTerms.length > 0 ? relevantTerms.join(' ') : words.slice(0, 3).join(' ');
     }
     
+    async saveChatHistory(sessionId, userMessage, assistantResponse) {
+        // For now, we'll just log the chat history
+        // In a production environment, you would save this to a database
+        console.log(`Chat History - Session: ${sessionId}`);
+        console.log(`User: ${userMessage}`);
+        console.log(`Assistant: ${assistantResponse}`);
+    }
+    
     async getChatHistory(sessionId) {
-        if (!this.isInitialized) {
-            await this.initialize();
-        }
-        
-        return await this.snowflake.getChatHistory(sessionId);
+        // For now, return empty array as we're not persisting chat history
+        // In a production environment, you would retrieve this from a database
+        return [];
     }
     
     async shutdown() {
-        await this.snowflake.disconnect();
-        await this.ldConfig.close();
+        // No explicit disconnect needed for REST-based connector
         this.isInitialized = false;
     }
 }
