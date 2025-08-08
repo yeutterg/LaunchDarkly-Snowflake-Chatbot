@@ -12,19 +12,16 @@ services:
       - NODE_ENV=production
       - FRONTEND_URL=http://localhost:3000
       
-      # Demo Mode - Remove these to use real credentials
-      - DEMO_MODE=true
+      # Demo Mode - Set to false for production with real credentials
+      - DEMO_MODE=${DEMO_MODE:-true}
       
-      # Snowflake Configuration (optional - will use mock if not provided)
-      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:-}
-      - SNOWFLAKE_USER=${SNOWFLAKE_USER:-}
-      - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD:-}
-      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
-      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-GRAVITY_FARMS_PETFOOD_AI}
-      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-CHATBOT}
+      # Snowflake REST API Configuration (required for production)
+      - SNOWFLAKE_ACCOUNT_IDENTIFIER=${SNOWFLAKE_ACCOUNT_IDENTIFIER:-}
+      - SNOWFLAKE_PAT=${SNOWFLAKE_PAT:-}
       
-      # LaunchDarkly Configuration (optional - will use mock if not provided)
+      # LaunchDarkly Configuration (required for production)
       - LAUNCHDARKLY_SDK_KEY=${LAUNCHDARKLY_SDK_KEY:-}
+      - LAUNCHDARKLY_AI_CONFIG_KEY=${LAUNCHDARKLY_AI_CONFIG_KEY:-gravity-farms-chatbot-config}
       
     restart: unless-stopped
     healthcheck:
@@ -86,7 +83,7 @@ networks:
 
 # USAGE:
 # ------
-# Complete Demo (Recommended for first time):
+# Demo mode (default):
 #   docker-compose --profile demo up
 #   Then open http://localhost:3000
 #
@@ -94,6 +91,10 @@ networks:
 #   docker-compose up chatbot-backend
 #
 # Production mode:
-#   1. Create .env file with real credentials
-#   2. Set DEMO_MODE=false in docker-compose.yml
-#   3. docker-compose up chatbot-backend
+#   1. Create .env file with real credentials:
+#      SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.snowflakecomputing.com
+#      SNOWFLAKE_PAT=your_personal_access_token
+#      LAUNCHDARKLY_SDK_KEY=sdk-xxxx-xxxx-xxxx
+#      LAUNCHDARKLY_AI_CONFIG_KEY=gravity-farms-chatbot-config
+#   2. Run with production mode:
+#      DEMO_MODE=false docker-compose up chatbot-backend

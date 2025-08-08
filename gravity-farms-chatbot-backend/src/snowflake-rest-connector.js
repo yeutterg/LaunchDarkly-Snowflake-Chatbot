@@ -7,12 +7,19 @@ const SNOWFLAKE_COMPLETE_URL = `${SNOWFLAKE_BASE_URL}/api/v2/cortex/inference:co
 
 class SnowflakeRestConnector {
     constructor() {
-        this.isDemo = process.env.DEMO_MODE === 'true' || 
-                      !process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER || 
-                      !process.env.SNOWFLAKE_PAT;
+        // Check if DEMO_MODE is explicitly set to true
+        this.isDemo = process.env.DEMO_MODE === 'true';
+        
+        // If DEMO_MODE is not explicitly true, check if we have the required credentials
+        if (!this.isDemo && (!process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER || !process.env.SNOWFLAKE_PAT)) {
+            console.log('⚠️  DEMO_MODE is false but missing Snowflake credentials. Falling back to demo mode.');
+            this.isDemo = true;
+        }
         
         if (this.isDemo) {
             console.log('🎮 Running in DEMO MODE - Using mock data instead of Snowflake REST API');
+        } else {
+            console.log('🚀 Running in PRODUCTION MODE - Using Snowflake REST API and LaunchDarkly AI Configs');
         }
     }
 
