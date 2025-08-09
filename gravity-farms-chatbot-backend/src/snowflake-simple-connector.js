@@ -1,19 +1,17 @@
 const { getLaunchDarklyClients } = require('./launchdarkly-ai-client');
-const snowflake = require('snowflake-sdk');
+const fetch = require('node-fetch');
 
-console.log('📦 Loading SnowflakeSDKConnector module...');
+console.log('📦 Loading SnowflakeSimpleConnector module...');
 
-class SnowflakeSDKConnector {
+class SnowflakeSimpleConnector {
     constructor() {
-        // Check if DEMO_MODE is explicitly set to true
-        this.isDemo = process.env.DEMO_MODE === 'true';
-        
         console.log('🔧 Environment check:');
         console.log('   DEMO_MODE:', process.env.DEMO_MODE);
         console.log('   SNOWFLAKE_ACCOUNT_IDENTIFIER:', process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER ? 'SET' : 'NOT SET');
         console.log('   SNOWFLAKE_PAT:', process.env.SNOWFLAKE_PAT ? 'SET' : 'NOT SET');
         
-        // If DEMO_MODE is not explicitly true, check if we have the required credentials
+        this.isDemo = process.env.DEMO_MODE === 'true';
+        
         if (!this.isDemo && (!process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER || !process.env.SNOWFLAKE_PAT)) {
             console.log('⚠️  DEMO_MODE is false but missing Snowflake credentials. Falling back to demo mode.');
             this.isDemo = true;
@@ -23,76 +21,67 @@ class SnowflakeSDKConnector {
             console.log('🎮 Running in DEMO MODE - Using mock data instead of Snowflake SDK');
         } else {
             console.log('🚀 Running in PRODUCTION MODE - Using Snowflake SDK and LaunchDarkly AI Configs');
-            console.log('✅ Cortex SQL functions confirmed available in your account');
-            
-            // Configure Snowflake connection using PAT (Programmatic Access Token)
-            this.connection = snowflake.createConnection({
-                account: process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER,
-                authenticator: 'oauth',
-                token: process.env.SNOWFLAKE_PAT,
-                warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'
-                // Don't set database/schema here - let the SQL queries handle it
-            });
         }
     }
 
-    async connectToSnowflake() {
-        return new Promise((resolve, reject) => {
-            // Add timeout to connection
-            const timeout = setTimeout(() => {
-                console.error('⏰ Connection to Snowflake timed out after 15 seconds');
-                reject(new Error('Connection to Snowflake timed out after 15 seconds'));
-            }, 15000);
-
-            console.log('🔗 Attempting to connect to Snowflake...');
-            this.connection.connect((err, conn) => {
-                clearTimeout(timeout);
-                if (err) {
-                    console.error('❌ Failed to connect to Snowflake:', err);
-                    reject(err);
-                } else {
-                    console.log('✅ Connected to Snowflake successfully');
-                    resolve(conn);
-                }
+    async callSnowflakeCortexAPI(model, messages, parameters = {}) {
+        // Use Snowflake Cortex inference API endpoint (matching the working tutorial implementation)
+        const SNOWFLAKE_BASE_URL = `https://${process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER}`;
+        const SNOWFLAKE_COMPLETE_URL = `${SNOWFLAKE_BASE_URL}/api/v2/cortex/inference:complete`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.SNOWFLAKE_PAT}`,
+            'Accept': 'application/json'
+        };
+        
+        const body = {
+            model: model,
+            messages: messages,
+            stream: false  // Important: We don't want streaming responses
+        };
+        
+        console.log('🚀 Making Snowflake Cortex inference API call:');
+        console.log('   Base URL:', SNOWFLAKE_BASE_URL);
+        console.log('   Complete URL:', SNOWFLAKE_COMPLETE_URL);
+        console.log('   Model:', model);
+        console.log('   Messages count:', messages.length);
+        console.log('   Stream:', false);
+        console.log('   Full request body:', JSON.stringify(body, null, 2));
+        console.log('   Authorization header present:', !!headers.Authorization);
+        
+        try {
+            const response = await fetch(SNOWFLAKE_COMPLETE_URL, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(body)
             });
-        });
-    }
-
-    async executeSQL(sqlQuery) {
-        return new Promise((resolve, reject) => {
-            // Add timeout to prevent hanging
-            const timeout = setTimeout(() => {
-                console.error('⏰ SQL execution timed out after 30 seconds');
-                reject(new Error('SQL execution timed out after 30 seconds'));
-            }, 30000);
-
-            console.log('🔍 Executing SQL query:', sqlQuery.substring(0, 100) + '...');
             
-            this.connection.execute({
-                sqlText: sqlQuery,
-                complete: (err, stmt, rows) => {
-                    clearTimeout(timeout);
-                    if (err) {
-                        console.error('❌ SQL execution failed:', err);
-                        reject(err);
-                    } else {
-                        console.log('✅ SQL executed successfully');
-                        console.log('📊 Result rows:', rows);
-                        console.log('📊 Statement info:', {
-                            sqlText: stmt.getSqlText(),
-                            status: stmt.getStatus(),
-                            rowsAffected: stmt.getNumRows(),
-                            streamResult: stmt.getStreamResult()
-                        });
-                        resolve(rows);
-                    }
-                }
-            });
-        });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Snowflake Cortex API error:');
+                console.error('   Status:', response.status);
+                console.error('   Status Text:', response.statusText);
+                console.error('   Headers:', response.headers.raw());
+                console.error('   Error Body (first 500 chars):', errorText.substring(0, 500));
+                throw new Error(`Snowflake Cortex API error: ${response.status} - ${errorText}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ Snowflake Cortex API response received');
+            
+            // The response should already be in the correct format from the Cortex API
+            // It should have a structure like: { choices: [{ message: { content: "..." } }], usage: {...} }
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Error calling Snowflake Cortex API:', error);
+            throw error;
+        }
     }
 
     async generateResponse(userMessage, context, sessionId) {
-        console.log('🎯 SnowflakeSDKConnector.generateResponse called with:');
+        console.log('🎯 SnowflakeSimpleConnector.generateResponse called with:');
         console.log('   Message:', userMessage);
         console.log('   Context:', context);
         console.log('   SessionId:', sessionId);
@@ -230,67 +219,63 @@ class SnowflakeSDKConnector {
 
             const durationStart = Date.now();
 
-            // Connect to Snowflake
-            console.log('🔗 Connecting to Snowflake...');
-            await this.connectToSnowflake();
-            console.log('✅ Connected to Snowflake successfully');
-
-            // First, test with a simple query to verify connection works
-            console.log('🧪 Testing connection with simple query...');
-            try {
-                const testResult = await this.executeSQL('SELECT CURRENT_TIMESTAMP() as test_time');
-                console.log('✅ Test query successful:', testResult);
-            } catch (testError) {
-                console.error('❌ Test query failed:', testError);
-                throw new Error(`Connection test failed: ${testError.message}`);
-            }
-
             // Convert messages to SQL format
             const messagesForSQL = config.messages.map(msg => ({
                 role: msg.role,
                 content: msg.content
             }));
 
-            // Set up database and schema first
-            console.log('🔧 Setting up database and schema...');
-            await this.executeSQL('USE DATABASE SNOWFLAKE');
-            await this.executeSQL('USE SCHEMA INFORMATION_SCHEMA');
+            // Use the model name directly from LaunchDarkly
+            // Snowflake Cortex supports models like: claude-3-5-sonnet, llama3.1-8b, etc.
+            const snowflakeModel = config.model.name;
+            console.log(`📦 Using model from LaunchDarkly config: ${snowflakeModel}`);
             
-            // Create SQL query using AI_COMPLETE function
-            const sqlQuery = `
-                SELECT AI_COMPLETE(
-                    '${config.model.name}',
-                    '${JSON.stringify(messagesForSQL).replace(/'/g, "''")}',
-                    '${JSON.stringify(config.model.parameters || {}).replace(/'/g, "''")}'
-                ) as response
-            `;
+            // Use the REST API to call Snowflake Cortex
+            let result;
+            try {
+                result = await this.callSnowflakeCortexAPI(
+                    snowflakeModel,
+                    messagesForSQL,
+                    config.model.parameters || {}
+                );
+            } catch (apiError) {
+                console.error('❌ Cortex inference API call failed:', apiError);
+                if (apiError.message?.includes('404')) {
+                    throw new Error('Snowflake Cortex inference endpoint not found. Please check if Cortex is enabled for your account.');
+                } else if (apiError.message?.includes('401') || apiError.message?.includes('403')) {
+                    throw new Error('Authentication failed. Please check your Snowflake PAT token.');
+                } else if (apiError.message?.includes('422')) {
+                    throw new Error('Invalid request. Please check the model name and message format.');
+                } else if (apiError.message?.includes('timeout')) {
+                    throw new Error('Request timed out. The Cortex model may be overloaded. Please try again.');
+                } else {
+                    throw apiError;
+                }
+            }
 
-            console.log('🚀 Making Snowflake SDK call with:');
-            console.log('   Model:', config.model.name);
-            console.log('   Messages count:', config.messages.length);
-            console.log('   SQL Query:', sqlQuery);
-            console.log('⏱️  Starting SQL execution (30s timeout)...');
-            
-            const result = await this.executeSQL(sqlQuery);
-
-            console.log('📡 Snowflake SDK result:', result);
+            console.log('📡 Snowflake API result received');
 
             const durationEnd = Date.now();
 
             // Track successful completion
             tracker.trackSuccess();
             tracker.trackDuration(durationEnd - durationStart);
-            
-            if (result.usage) {
+
+            if (result?.usage) {
                 tracker.trackTokens({
-                    total: result.usage.total_tokens,
-                    input: result.usage.prompt_tokens,
-                    output: result.usage.completion_tokens,
+                    total: result.usage.total_tokens || 0,
+                    input: result.usage.prompt_tokens || 0,
+                    output: result.usage.completion_tokens || 0,
                 });
             }
 
-            // Extract the response from the SQL result
-            const response = result?.[0]?.RESPONSE ?? "No response from Snowflake SDK";
+            // Extract the response from the API result
+            let response = result?.choices?.[0]?.message?.content || 
+                          result?.choices?.[0]?.text || 
+                          result?.message?.content ||
+                          "No response from Snowflake Cortex";
+            
+            console.log('📝 Extracted response from API result');
 
             return { response, model: config.model.name };
         } catch (error) {
@@ -332,7 +317,7 @@ class SnowflakeSDKConnector {
         }
 
         // For production, you would implement SQL queries to your Snowflake data
-        console.log('Product search not implemented for SDK interface yet');
+        console.log('Product search not implemented for simple connector yet');
         return [];
     }
 
@@ -358,9 +343,9 @@ class SnowflakeSDKConnector {
         }
 
         // For production, you would implement SQL queries to your Snowflake data
-        console.log('Order lookup not implemented for SDK interface yet');
+        console.log('Order lookup not implemented for simple connector yet');
         return [];
     }
 }
 
-module.exports = { SnowflakeSDKConnector }; 
+module.exports = { SnowflakeSimpleConnector }; 

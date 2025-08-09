@@ -151,50 +151,217 @@ Context: {{context}}
 
 ### 3. Snowflake Setup
 
-#### Create Personal Access Token
+> **Important**: Follow these steps carefully to ensure proper authentication with the Snowflake Cortex REST API.
 
-1. Log into your Snowflake web interface
-2. Go to **Admin** → **Users & roles** → **Your Username**
-3. Under Programmatic access tokens, click **"Generate new token"**
-4. Give it a name like "LD-Cortex-Chatbot" and an appropriate expiration date. Choose the appropriate role (for me it was ACCOUNTADMIN"). Click **"Generate"**
-5. Copy the token, then paste it into `.env` as `SNOWFLAKE_PAT`
-6. Make sure your user has the `SNOWFLAKE.CORTEX_USER` role
+#### Prerequisites
 
-#### Create Network Policy
+Before starting, ensure you have:
+- ACCOUNTADMIN role access in your Snowflake account
+- Access to Snowflake Cortex features (contact Snowflake support if not enabled)
+- REST API access enabled for your account (contact Snowflake support if needed)
 
-If you see a warning about a missing network policy, do the following (instructions only for the new Snowsight interface):
+#### Step 1: Grant Cortex Permissions to Your Role
 
-1. In Snowflake, go to **Admin** → **Security** → **Network Policies**
-2. Ensure your Role is set to an Admin role, such as ACCOUNTADMIN (click on your name at the bottom left, then **Switch Role**)
-3. Click **"+ Network Policy"**
-4. Give it a name like "LDCORTEXCHATBOT"
-5. In the comment box, add a description like "Network policy for LaunchDarkly + Snowflake Cortex chatbot demo"
-6. Click **New rule**
-7. Give it a name like "[yourname]MacBook" (no spaces allowed) and select the appropriate database (e.g. FARM_FRESH_PET)
-8. Under Type, select IPv4 and Ingress
-9. Find your public IPv4 address by running the following in your Terminal:
-```bash
-curl -4 -s ifconfig.me
+Grant the necessary Cortex permissions to your existing role:
+
+1. **Switch to ACCOUNTADMIN role**:
+   ```sql
+   -- Switch to ACCOUNTADMIN role
+   USE ROLE ACCOUNTADMIN;
+   
+   -- Verify your current role
+   SELECT CURRENT_ROLE();
+   ```
+
+2. **Grant CORTEX_USER permissions**:
+   ```sql
+   -- Grant the CORTEX_USER database role to ACCOUNTADMIN
+   GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE ACCOUNTADMIN;
+   
+   -- Verify the grant was successful
+   SHOW GRANTS TO ROLE ACCOUNTADMIN;
+   ```
+
+3. **Test Cortex access**:
+   ```sql
+   -- Test that Cortex functions work
+   SELECT SNOWFLAKE.CORTEX.COMPLETE(
+       'claude-3-5-sonnet',
+       'Hello, are you working?'
+   ) as test_response;
+   ```
+
+   If this returns a response, Cortex is properly configured for your account.
+
+#### Step 2: Create Personal Access Token (PAT)
+
+1. **Via Snowflake UI (Snowsight)**:
+   - Navigate to **Admin** → **Users & Roles**
+   - Click on your username
+   - Under **Programmatic Access Tokens**, click **"Generate new token"**
+   - Name: `LD-Cortex-Chatbot`
+   - Expiration: Choose an appropriate duration (e.g., 90 days)
+   - Role: Select `ACCOUNTADMIN` (or whichever role you granted CORTEX_USER to)
+   - Click **"Generate"**
+   - **IMPORTANT**: Copy the token immediately - it won't be shown again!
+
+2. **Via SQL Command** (replace YOUR_USERNAME with your actual username):
+   ```sql
+   -- Generate a PAT for your user
+   SELECT SYSTEM$GENERATE_PROGRAMMATIC_ACCESS_TOKEN('YOUR_USERNAME', 90);
+   ```
+
+3. Add the token to your `.env` file:
+   ```bash
+   SNOWFLAKE_PAT=your_generated_token_here
+   ```
+
+#### Step 3: Configure Network Policy
+
+Personal Access Tokens require a Network Policy for security. Follow these steps:
+
+1. **Find Your IP Address**:
+   ```bash
+   # Get your public IPv4 address
+   curl -4 -s ifconfig.me
+   ```
+
+2. **Create Network Policy via SQL** (replace YOUR_USERNAME with your actual username):
+   ```sql
+   -- Create a network policy for API access
+   CREATE NETWORK POLICY IF NOT EXISTS CHATBOT_API_POLICY
+       ALLOWED_IP_LIST = ('YOUR.IP.ADDRESS.HERE')
+       COMMENT = 'Network policy for LaunchDarkly Cortex chatbot API access';
+
+   -- Apply the policy to your user
+   ALTER USER YOUR_USERNAME SET NETWORK_POLICY = CHATBOT_API_POLICY;
+   ```
+
+3. **Or via Snowflake UI**:
+   - Go to **Admin** → **Security** → **Network Policies**
+   - Click **"+ Network Policy"**
+   - Name: `CHATBOT_API_POLICY`
+   - Description: "Network policy for LaunchDarkly Cortex chatbot"
+   - Add a new rule:
+     - Name: `API_ACCESS`
+     - Type: IPv4, Ingress
+     - Add your IP address from step 1
+   - Create the policy
+   - Apply it to your user in **Admin** → **Users & Roles** → **Your User** → **Edit**
+
+> **Important**: If your IP address changes (e.g., dynamic IP), you'll need to update the network policy.
+
+#### Step 4: Get Your Account Identifier
+
+The account identifier format is crucial for REST API access:
+
+1. **Via Snowflake UI**:
+   - Click your name in the bottom-left corner
+   - Hover over your active account
+   - Select **"View account details"**
+   - Copy the **"Account/Server URL"** field
+
+2. **Via SQL**:
+   ```sql
+   SELECT CURRENT_ACCOUNT();
+   ```
+
+3. **Format for `.env`**:
+   ```bash
+   # Include the full domain for REST API access
+   SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.snowflakecomputing.com
+   
+   # Or if you have a regional deployment
+   SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.region.aws.snowflakecomputing.com
+   ```
+
+> **Note**: For REST API access, always use the full URL format including `.snowflakecomputing.com`
+
+#### Step 5: Verify Cortex Access
+
+Run this diagnostic query to ensure Cortex is available:
+
+```sql
+-- Check if Cortex functions are available
+SELECT SNOWFLAKE.CORTEX.COMPLETE(
+    'claude-3-5-sonnet',
+    'Hello, are you working?'
+) as test_response;
+
+-- If this fails, Cortex might not be enabled for your account
 ```
-10. In **Search or add identifier,** paste your IPv4 address and hit Return on your keyboard.
-11. Click **Create Network Rule**
-12. Click **Create Network Policy**
-13. Go back to **Settings** → **Admin** → **Users & roles** → **Your Username**
-14. Ensure there is no longer a warning about a Network Policy, and that your role (e.g. ACCOUNTADMIN) is now listed under Privileges.
 
-Your PAT will now only work from the allowed IP addresses.
+#### Step 6: Configure Environment Variables
 
-#### Account Identifier
+Update your `.env` file with all the necessary values:
 
-Look at the URL bar to find your account identifier:
-- **Classic interface**: URL will be `https://your-account-identifier.snowflakecomputing.com`
-- **New Snowsight interface**: URL will be `https://app.snowflake.com/your-account-identifier`
+```bash
+# Snowflake Configuration
+SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.snowflakecomputing.com
+SNOWFLAKE_PAT=your_personal_access_token_here
+SNOWFLAKE_WAREHOUSE=DEFAULT_WH  # Or your preferred warehouse
+SNOWFLAKE_ROLE=ACCOUNTADMIN  # Or whichever role you granted CORTEX_USER to
 
-Your account identifier is either:
-- The part before `.snowflakecomputing.com` (classic)
-- The part after `app.snowflake.com/` (Snowsight)
+# Optional: If using specific database/schema
+SNOWFLAKE_DATABASE=SNOWFLAKE
+SNOWFLAKE_SCHEMA=CORTEX
+```
 
-Paste this into `.env` under `SNOWFLAKE_ACCOUNT_IDENTIFIER`
+#### Troubleshooting Common Issues
+
+1. **"Permission denied" or "Not authorized" errors**:
+   - Ensure you're using `ACCOUNTADMIN` role:
+     ```sql
+     USE ROLE ACCOUNTADMIN;
+     ```
+   - If you can't switch roles, ask your Snowflake administrator to grant you the necessary permissions
+   - Verify CORTEX_USER role is granted:
+     ```sql
+     SHOW GRANTS TO ROLE ACCOUNTADMIN;
+     ```
+
+2. **404 Error on REST API calls**:
+   - Ensure your account identifier includes the full domain
+   - Verify Cortex is enabled: Contact Snowflake support if needed
+   - Check that the `/api/v2/cortex/inference:complete` endpoint is available
+   - Try this test:
+     ```bash
+     curl -X POST https://YOUR-ACCOUNT.snowflakecomputing.com/api/v2/cortex/inference:complete \
+       -H "Authorization: Bearer YOUR_PAT" \
+       -H "Content-Type: application/json" \
+       -d '{"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"Hi"}],"stream":false}'
+     ```
+
+3. **Authentication Failed (401/403)**:
+   - Verify your PAT is valid and not expired
+   - Ensure the Network Policy includes your current IP
+   - Check that the user has the `SNOWFLAKE.CORTEX_USER` database role:
+     ```sql
+     SHOW GRANTS TO ROLE YOUR_ROLE_NAME;
+     ```
+
+4. **Model Not Found**:
+   - Verify the model name (e.g., `claude-3-5-sonnet`, `llama3.1-8b`)
+   - Some models may require additional permissions or credits
+   - Test available models:
+     ```sql
+     SELECT SNOWFLAKE.CORTEX.COMPLETE('claude-3-5-sonnet', 'test');
+     ```
+
+5. **Network Policy Issues**:
+   - If behind a corporate firewall, you may need to whitelist multiple IPs
+   - Consider using a VPN with a static IP for consistent access
+   - Temporarily disable network policy to test:
+     ```sql
+     ALTER USER YOUR_USER UNSET NETWORK_POLICY;
+     ```
+
+#### Additional Resources
+
+- [Snowflake REST API Authentication Guide](https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/authentication)
+- [Cortex REST API Documentation](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api)
+- [Network Policies Documentation](https://docs.snowflake.com/en/user-guide/network-policies)
+- [Personal Access Tokens Guide](https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/authentication#label-sfrest-authenticating-pat)
 
 ### 4. Run in Production Mode
 

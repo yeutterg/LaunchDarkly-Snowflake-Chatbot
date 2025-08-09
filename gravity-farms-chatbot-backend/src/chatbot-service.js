@@ -1,9 +1,9 @@
-const { SnowflakeSDKConnector } = require('./snowflake-sdk-connector');
+const { SnowflakeSimpleConnector } = require('./snowflake-simple-connector');
 const { getLaunchDarklyClients } = require('./launchdarkly-ai-client');
 
 class ChatbotService {
     constructor() {
-        this.snowflake = new SnowflakeSDKConnector();
+        this.snowflake = new SnowflakeSimpleConnector();
         this.isInitialized = false;
     }
     
@@ -87,7 +87,9 @@ class ChatbotService {
             }
             
             // Generate response using the new REST-based approach
+            console.log('🔄 ChatbotService calling snowflake.generateResponse...');
             const result = await this.snowflake.generateResponse(message, context, sessionId);
+            console.log('✅ ChatbotService received result:', result);
             
             metrics.responseTime = Date.now() - startTime;
             metrics.model = result.model || 'unknown';
