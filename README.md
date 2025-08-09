@@ -95,7 +95,7 @@ Update the `.env` file with your credentials:
 
 ```bash
 # Snowflake REST API Configuration
-SNOWFLAKE_ACCOUNT_IDENTIFIER=your_account_identifier
+SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.region.snowflakecomputing.com  # e.g., ppb67821.us-east-1.snowflakecomputing.com
 SNOWFLAKE_PAT=your_personal_access_token
 
 # LaunchDarkly Configuration
@@ -193,32 +193,12 @@ Grant the necessary Cortex permissions to your existing role:
 
    If this returns a response, Cortex is properly configured for your account.
 
-#### Step 2: Create Personal Access Token (PAT)
+#### Step 2: Configure Network Policy
 
-1. **Via Snowflake UI (Snowsight)**:
-   - Navigate to **Admin** → **Users & Roles**
-   - Click on your username
-   - Under **Programmatic Access Tokens**, click **"Generate new token"**
-   - Name: `LD-Cortex-Chatbot`
-   - Expiration: Choose an appropriate duration (e.g., 90 days)
-   - Role: Select `ACCOUNTADMIN` (or whichever role you granted CORTEX_USER to)
-   - Click **"Generate"**
-   - **IMPORTANT**: Copy the token immediately - it won't be shown again!
+> ⚠️ **CRITICAL**: You MUST set up the network policy BEFORE generating the PAT token!
+> PATs generated without a network policy will not work and will return "Network policy is required" errors.
 
-2. **Via SQL Command** (replace YOUR_USERNAME with your actual username):
-   ```sql
-   -- Generate a PAT for your user
-   SELECT SYSTEM$GENERATE_PROGRAMMATIC_ACCESS_TOKEN('YOUR_USERNAME', 90);
-   ```
-
-3. Add the token to your `.env` file:
-   ```bash
-   SNOWFLAKE_PAT=your_generated_token_here
-   ```
-
-#### Step 3: Configure Network Policy
-
-Personal Access Tokens require a Network Policy for security. Follow these steps:
+Personal Access Tokens require a Network Policy for security. This must be done before generating the PAT:
 
 1. **Find Your IP Address**:
    ```bash
@@ -238,6 +218,7 @@ Personal Access Tokens require a Network Policy for security. Follow these steps
    ```
 
 3. **Or via Snowflake UI**:
+   - Click on your name at the bottom left, and ensure your role is set to ACCOUNTADMIN
    - Go to **Admin** → **Security** → **Network Policies**
    - Click **"+ Network Policy"**
    - Name: `CHATBOT_API_POLICY`
@@ -251,31 +232,87 @@ Personal Access Tokens require a Network Policy for security. Follow these steps
 
 > **Important**: If your IP address changes (e.g., dynamic IP), you'll need to update the network policy.
 
+#### Step 3: Create Personal Access Token (PAT)
+
+> **Important**: Only generate the PAT AFTER the network policy is configured and applied to your user!
+
+1. **Via Snowflake UI (Snowsight)** (Recommended):
+   - First, verify the network policy is applied by running this SQL in a worksheet:
+     ```sql
+     -- Check user parameters
+     SHOW PARAMETERS FOR USER YOUR_USERNAME;
+     -- Look for NETWORK_POLICY in the results
+     
+     -- Alternative: Check the network policy directly
+     SHOW NETWORK POLICIES;
+     -- Verify CHATBOT_API_POLICY exists
+     
+     -- To see which users have the policy:
+     SELECT * FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) 
+     WHERE "name" = 'CHATBOT_API_POLICY';
+     ```
+   - Once confirmed, click on your name at the bottom left, ensure role is ACCOUNTADMIN
+   - Navigate to **Admin** → **Users & Roles**
+   - Click on your username
+   - Under **Programmatic Access Tokens**, click **"Generate new token"**
+   - Name: `LD-Cortex-Chatbot`
+   - Expiration: Choose an appropriate duration (e.g., 90 days)
+   - Role: Select `ACCOUNTADMIN` (or whichever role you granted CORTEX_USER to)
+   - Click **"Generate"**
+   - **IMPORTANT**: Copy the token immediately - it won't be shown again!
+
+2. **Via SQL Command** (replace YOUR_USERNAME with your actual username):
+   ```sql
+   -- First verify the network policy is set
+   DESC USER YOUR_USERNAME;
+   -- Look for NETWORK_POLICY = CHATBOT_API_POLICY
+   
+   -- Then generate a PAT for your user
+   SELECT SYSTEM$GENERATE_PROGRAMMATIC_ACCESS_TOKEN('YOUR_USERNAME', 90);
+   ```
+
+3. Add the token to your `.env` file:
+   ```bash
+   SNOWFLAKE_PAT=your_generated_token_here
+   ```
+
 #### Step 4: Get Your Account Identifier
 
 The account identifier format is crucial for REST API access:
 
-1. **Via Snowflake UI**:
+1. **Via SQL** (Recommended):
+   ```sql
+   -- Get your account locator and region
+   SELECT CURRENT_ACCOUNT() as account_locator;
+   SELECT CURRENT_REGION() as region;
+   ```
+
+2. **Via Snowflake UI**:
    - Click your name in the bottom-left corner
    - Hover over your active account
    - Select **"View account details"**
-   - Copy the **"Account/Server URL"** field
-
-2. **Via SQL**:
-   ```sql
-   SELECT CURRENT_ACCOUNT();
-   ```
+   - Look for **"Account"** (e.g., PPB67821)
+   - Look for **"Region"** (e.g., AWS_US_EAST_1)
 
 3. **Format for `.env`**:
    ```bash
-   # Include the full domain for REST API access
-   SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.snowflakecomputing.com
+   # Format: <account_locator>.<region>.snowflakecomputing.com
+   # The region format for REST API is lowercase with hyphens
    
-   # Or if you have a regional deployment
-   SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.region.aws.snowflakecomputing.com
+   # Examples:
+   # For account PPB67821 in AWS_US_EAST_1:
+   SNOWFLAKE_ACCOUNT_IDENTIFIER=ppb67821.us-east-1.snowflakecomputing.com
+   
+   # For other regions:
+   # AWS_US_WEST_2 → account.us-west-2.snowflakecomputing.com
+   # AZURE_EASTUS2 → account.east-us-2.azure.snowflakecomputing.com
+   # GCP_US_CENTRAL1 → account.us-central1.gcp.snowflakecomputing.com
    ```
 
-> **Note**: For REST API access, always use the full URL format including `.snowflakecomputing.com`
+> **Important**: The account identifier must be lowercase and the region format changes:
+> - `AWS_US_EAST_1` becomes `us-east-1`
+> - `AZURE_EASTUS2` becomes `east-us-2.azure`
+> - Remove `PUBLIC.` prefix if present
 
 #### Step 5: Verify Cortex Access
 
@@ -297,10 +334,12 @@ Update your `.env` file with all the necessary values:
 
 ```bash
 # Snowflake Configuration
-SNOWFLAKE_ACCOUNT_IDENTIFIER=your-account.snowflakecomputing.com
-SNOWFLAKE_PAT=your_personal_access_token_here
+SNOWFLAKE_ACCOUNT=ABC12345  # Your account locator from CURRENT_ACCOUNT()
+SNOWFLAKE_ACCOUNT_IDENTIFIER=abc12345.us-east-1.snowflakecomputing.com  # Format: account.region.snowflakecomputing.com
+SNOWFLAKE_PAT=your_personal_access_token_here  # Generate this in Step 2
 SNOWFLAKE_WAREHOUSE=DEFAULT_WH  # Or your preferred warehouse
 SNOWFLAKE_ROLE=ACCOUNTADMIN  # Or whichever role you granted CORTEX_USER to
+SNOWFLAKE_REGION=AWS_US_EAST_1  # Optional: for reference
 
 # Optional: If using specific database/schema
 SNOWFLAKE_DATABASE=SNOWFLAKE
@@ -355,6 +394,26 @@ SNOWFLAKE_SCHEMA=CORTEX
      ```sql
      ALTER USER YOUR_USER UNSET NETWORK_POLICY;
      ```
+
+#### Common Setup Issues & Solutions
+
+1. **"Network policy is required" error**:
+   - You generated the PAT before setting up the network policy
+   - Solution: Set up network policy first (Step 2), then regenerate PAT (Step 3)
+
+2. **"Programmatic access token is invalid" error**:
+   - The PAT is expired, revoked, or for the wrong account
+   - Solution: Generate a new PAT token after verifying network policy is active
+
+3. **"401 Unauthorized" errors**:
+   - Check the order: Network Policy (Step 2) → Generate PAT (Step 3)
+   - Verify network policy is applied: `DESC USER YOUR_USERNAME;`
+   - Regenerate PAT if it was created before the network policy
+
+4. **IP address changes (VPN, different network)**:
+   - Update the network policy with your new IP
+   - Or use a broader range for development: `ALLOWED_IP_LIST = ('0.0.0.0/0')`
+   - ⚠️ Only use `0.0.0.0/0` for testing, not production!
 
 #### Additional Resources
 
