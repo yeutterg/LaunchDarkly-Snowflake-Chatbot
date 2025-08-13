@@ -8,7 +8,7 @@
 
 # Configuration - Update these values
 ACCOUNT_IDENTIFIER="idmxgka.snowflakecomputing.com"
-JWT_TOKEN="eyJraWQiOiIzMTQzNDMwNzM2NTI4ODg2IiwiYWxnIjoiRVMyNTYifQ.eyJwIjoiNDc5NjQ5NDc5Njk6NDc5NjQ5NDY2OTMiLCJpc3MiOiJTRjoxMDQzIiwiZXhwIjoxNzg2MjEyNzI3fQ.gtTLDo6IeaBYbyrenLFbsLcI5uFpImWGLhRejaCPwQIthhW-4gEqDE-tKa1vbovCz-GWM1uFJJjsZXoKdPcPpQ"
+JWT_TOKEN="${SNOWFLAKE_PAT:-YOUR_PAT_TOKEN_HERE}"
 
 # Colors for output
 RED='\033[0;31m'

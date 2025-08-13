@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 // Test script to verify Snowflake REST API access
 async function testSnowflakeAPIs() {
-    const PAT = 'eyJraWQiOiIzMTQzNDMwNzM2NTI4ODg2IiwiYWxnIjoiRVMyNTYifQ.eyJwIjoiNDc5NjQ5NDc5Njk6NDc5NjQ5NDY2OTMiLCJpc3MiOiJTRjoxMDQzIiwiZXhwIjoxNzg2MjEyNzI3fQ.gtTLDo6IeaBYbyrenLFbsLcI5uFpImWGLhRejaCPwQIthhW-4gEqDE-tKa1vbovCz-GWM1uFJJjsZXoKdPcPpQ';
+    const PAT = process.env.SNOWFLAKE_PAT || 'YOUR_PAT_TOKEN_HERE';
     const ACCOUNT = 'idmxgka.snowflakecomputing.com';
     
     console.log('Testing Snowflake REST API endpoints...\n');
