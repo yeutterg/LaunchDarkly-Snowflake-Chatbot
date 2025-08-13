@@ -38,6 +38,8 @@ test-*.sh
 diagnose-*.sh
 *-test.sh
 *-test.js
+test-*.js
+diagnose-*.js
 
 # SQL files that might contain credentials
 *-setup.sql
@@ -47,3 +49,19 @@ diagnose-*.sh
 *.tmp
 *.temp
 .cache/
+
+# Server logs that might contain secrets
+server.log
+**/server.log
+
+# Shell scripts that might contain credentials
+snowflake-rest-api-test.sh
+setup-*.sh
+
+# Any file with credentials or keys
+*-credentials.*
+*-keys.*
+*.key
+*.pem
+
+.gitignore
