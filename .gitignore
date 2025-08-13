@@ -1,0 +1,49 @@
+# Environment files - NEVER commit these!
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+
+# Backup files
+*.backup
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Test scripts with sensitive data
+test-*.sh
+diagnose-*.sh
+*-test.sh
+*-test.js
+
+# SQL files that might contain credentials
+*-setup.sql
+*-policy.sql
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

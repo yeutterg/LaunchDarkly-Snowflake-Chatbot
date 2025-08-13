@@ -81,17 +81,17 @@ Try these demo queries:
 
 ### 1. Environment Configuration
 
-Copy the example environment file and configure it:
+**Important**: You only need ONE `.env` file at the root of the project. All services will use this single configuration file.
 
 ```bash
-# Copy the example environment file
+# Create your .env file in the root directory
 cp env.example .env
 
 # Edit the .env file with your actual credentials
 nano .env  # or use your preferred editor
 ```
 
-Update the `.env` file with your credentials:
+Update the `.env` file in the root directory with your credentials:
 
 ```bash
 # Snowflake REST API Configuration
@@ -206,15 +206,34 @@ Personal Access Tokens require a Network Policy for security. This must be done 
    curl -4 -s ifconfig.me
    ```
 
-2. **Create Network Policy via SQL** (replace YOUR_USERNAME with your actual username):
+2. **Create and Apply Network Policy via SQL**:
+   
+   Run these commands in order in your Snowflake SQL worksheet:
+   
    ```sql
-   -- Create a network policy for API access
-   CREATE NETWORK POLICY IF NOT EXISTS CHATBOT_API_POLICY
+   -- Step 1: Switch to ACCOUNTADMIN role (REQUIRED)
+   USE ROLE ACCOUNTADMIN;
+
+   -- Step 2: Get your current username
+   SELECT CURRENT_USER();
+   -- Note this username for the next steps
+
+   -- Step 3: Create the network policy with your IP
+   -- Replace YOUR.IP.ADDRESS.HERE with the IP from step 1 above
+   CREATE OR REPLACE NETWORK POLICY CHATBOT_API_POLICY
        ALLOWED_IP_LIST = ('YOUR.IP.ADDRESS.HERE')
        COMMENT = 'Network policy for LaunchDarkly Cortex chatbot API access';
 
-   -- Apply the policy to your user
+   -- Step 4: Apply the policy to your user
+   -- Replace YOUR_USERNAME with the result from Step 2
    ALTER USER YOUR_USERNAME SET NETWORK_POLICY = CHATBOT_API_POLICY;
+
+   -- Step 5: Verify the policy was created
+   SHOW NETWORK POLICIES LIKE 'CHATBOT_API_POLICY';
+
+   -- Step 6: Verify it's applied to your user
+   SHOW PARAMETERS FOR USER YOUR_USERNAME;
+   -- Look for NETWORK_POLICY in the results
    ```
 
 3. **Or via Snowflake UI**:
@@ -330,20 +349,31 @@ SELECT SNOWFLAKE.CORTEX.COMPLETE(
 
 #### Step 6: Configure Environment Variables
 
-Update your `.env` file with all the necessary values:
+Create a single `.env` file in the **root directory** of the project (not in subdirectories):
 
 ```bash
-# Snowflake Configuration
-SNOWFLAKE_ACCOUNT=ABC12345  # Your account locator from CURRENT_ACCOUNT()
-SNOWFLAKE_ACCOUNT_IDENTIFIER=abc12345.us-east-1.snowflakecomputing.com  # Format: account.region.snowflakecomputing.com
-SNOWFLAKE_PAT=your_personal_access_token_here  # Generate this in Step 2
-SNOWFLAKE_WAREHOUSE=DEFAULT_WH  # Or your preferred warehouse
-SNOWFLAKE_ROLE=ACCOUNTADMIN  # Or whichever role you granted CORTEX_USER to
-SNOWFLAKE_REGION=AWS_US_EAST_1  # Optional: for reference
+# Location: /LaunchDarkly-Snowflake-Chatbot/.env (root directory)
 
-# Optional: If using specific database/schema
-SNOWFLAKE_DATABASE=SNOWFLAKE
-SNOWFLAKE_SCHEMA=CORTEX
+# Snowflake Configuration
+SNOWFLAKE_ACCOUNT=PPB67821  # Your account locator from CURRENT_ACCOUNT()
+SNOWFLAKE_ACCOUNT_IDENTIFIER=ppb67821.us-east-1.snowflakecomputing.com  # Format: account.region.snowflakecomputing.com
+SNOWFLAKE_PAT=your_personal_access_token_here  # Generate this in Step 3 (AFTER network policy)
+SNOWFLAKE_USER=your_snowflake_username  # Your Snowflake username
+SNOWFLAKE_PASSWORD=not_used_with_pat  # Not needed when using PAT
+SNOWFLAKE_WAREHOUSE=DEFAULT_WH  # Or your preferred warehouse
+SNOWFLAKE_DATABASE=GRAVITY_FARMS_PETFOOD_AI
+SNOWFLAKE_SCHEMA=CHATBOT
+SNOWFLAKE_ROLE=ACCOUNTADMIN  # Must have CORTEX_USER permissions
+SNOWFLAKE_REGION=AWS_US_EAST_1  # Optional: for reference
+SNOWFLAKE_NETWORK_POLICY=CHATBOT_API_POLICY  # The network policy name from Step 2
+
+# LaunchDarkly Configuration
+LAUNCHDARKLY_SDK_KEY=sdk-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+LAUNCHDARKLY_CLIENT_SIDE_ID=xxxxxxxxxxxxxxxxxxxxxxxx
+LAUNCHDARKLY_AI_CONFIG_KEY=gravity-farms-chatbot-config
+
+# Demo Mode
+DEMO_MODE=false  # Set to true to use mock data without credentials
 ```
 
 #### Troubleshooting Common Issues
