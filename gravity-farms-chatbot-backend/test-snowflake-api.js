@@ -3,7 +3,7 @@ const fetch = require('node-fetch');
 // Test script to verify Snowflake REST API access
 async function testSnowflakeAPIs() {
     const PAT = process.env.SNOWFLAKE_PAT || 'YOUR_PAT_TOKEN_HERE';
-    const ACCOUNT = 'idmxgka.snowflakecomputing.com';
+    const ACCOUNT = process.env.SNOWFLAKE_ACCOUNT_IDENTIFIER || 'ppb67821.us-east-1.snowflakecomputing.com';
     
     console.log('Testing Snowflake REST API endpoints...\n');
     

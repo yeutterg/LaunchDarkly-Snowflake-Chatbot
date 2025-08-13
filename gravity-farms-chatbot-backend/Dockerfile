@@ -11,7 +11,6 @@ RUN npm ci --omit=dev
 
 # Copy application files
 COPY src ./src
-COPY .env.example .env.example
 
 # Create a non-root user to run the application
 RUN addgroup -g 1001 -S nodejs
